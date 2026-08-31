@@ -1,0 +1,12 @@
+{
+  "name": "hollow-feast",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hollow Feast - browser game (index 56)",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "three": "^0.178.0"
+  }
+}

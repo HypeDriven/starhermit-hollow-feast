@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hollow Feast</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #0b0d12; color: #e8ecf4; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+  header { padding-top: 16px; text-align: center; }
+  h1 { margin: 0; font-size: 28px; letter-spacing: 0.5px; color: #ffffff; }
+  .subtitle { margin-top: 4px; font-size: 13px; color: #9aa7bd; }
+  #game-wrap { display: block; width: min(64vmin, 52vh); max-width: calc(100vw - 32px); aspect-ratio: 1 / 1; margin-top: 8px; }
+  canvas#game { display: block; width: 100%; height: 100%; background: #141a26; border-radius: 8px; touch-action: none; }
+  .hud-row { display: flex; gap: 16px; margin-top: 10px; font-size: 15px; color: #dfe7f3; text-align: center; }
+  .hud-cell b { display: block; font-size: 20px; color: #ffffff; font-weight: 600; }
+  #controls { margin-top: 8px; padding-bottom: 14px; }
+  button.ctl { width: 56px; height: 44px; border-radius: 9px; border: none; background: #233047; color: #ffffff; font-size: 18px; cursor: pointer; padding: 0; margin: 0; }
+  button.ctl:hover { filter: brightness(1.15); }
+  button.ctl:focus-visible { outline: 2px solid #6ea3ff; outline-offset: 1px; }
+</style>
+</head>
+<body>
+<header><h1>Hollow Feast</h1><div class="subtitle">Game index 56 &middot; collection action</div></header>
+<div id="game-wrap"><canvas id="game" aria-label="Hollow Feast playfield"></canvas></div>
+<section class="hud-row" aria-live="polite">
+  <div class="hud-cell"><span>Score</span><b id="score">0</b></div>
+  <div class="hud-cell"><span>Eaten</span><b id="eaten">0 / 12</b></div>
+</section>
+<nav id="controls" aria-label="Movement controls">
+  <button type="button" class="ctl" data-dir="left">&#8592;</button>
+  <button type="button" class="ctl" data-dir="up">&#8593;</button>
+  <button type="button" class="ctl" data-dir="down">&#8595;</button>
+  <button type="button" class="ctl" data-dir="right">&#8594;</button>
+</nav>
+<script src="/js/three.min.js"></script>
+<script src="/js/sfx.js"></script>
+<script src="/js/game.js"></script>
+</body>
+</html>
