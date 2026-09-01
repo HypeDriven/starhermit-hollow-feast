@@ -34,8 +34,12 @@
   <button type="button" class="ctl" data-dir="down">&#8595;</button>
   <button type="button" class="ctl" data-dir="right">&#8594;</button>
 </nav>
-<script src="/js/three.min.js"></script>
-<script src="/js/sfx.js"></script>
-<script src="/js/game.js"></script>
+<script src="./rules.js"></script>
+<script src="./js/sfx.js"></script>
+<script type="module">
+  import * as THREE from './js/three.module.min.js?v=production-qa-1';
+  window.THREE = THREE;
+  await import('./game.js?v=production-qa-1');
+</script>
 </body>
 </html>
