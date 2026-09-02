@@ -16,8 +16,8 @@ function mulberry32(seed) {
 function initialState(seed, cells, voidPos) {
   const s = {};
   if (seed !== undefined && seed !== null) s.seed = seed;
-  s.cells = cells.slice();
-  s.voidPos = voidPos.slice();
+  s.cells = (cells || []).slice();
+  s.voidPos = (voidPos || [0, 0]).slice();
   s.score = 0;
   s.invalidActions = 0;
   s.tick = 0;
@@ -37,18 +37,16 @@ function isLegal(state, dir) {
 
 function applyAction(prev, dir) {
   if (prev.won || !isLegal(prev, dir)) {
-    const s = initialState(null);
-    s.cells = prev.cells.slice();
-    s.voidPos = prev.voidPos.slice();
+    const s = initialState(null, prev.cells, prev.voidPos);
     s.score = prev.score;
     s.invalidActions = prev.invalidActions + 1;
     s.tick = prev.tick + 1;
     return s;
   }
   const [dx, dy] = DIRS[dir];
-  const x = state.voidPos[0] + dx;
-  const y = state.voidPos[1] + dy;
-  const cell = state.cells[y * 4 + x];
+  const x = prev.voidPos[0] + dx;
+  const y = prev.voidPos[1] + dy;
+  const cell = prev.cells[y * 4 + x];
   let cells;
   if (cell.kind) {
     cells = prev.cells.slice();
@@ -56,17 +54,10 @@ function applyAction(prev, dir) {
   } else {
     cells = prev.cells;
   }
-  const s = initialState(null);
-  s.cells = cells;
-  s.voidPos = [x, y];
+  const s = initialState(null, cells, [x, y]);
   if (cell.kind) {
-    // combo: number of items consumed in this run so far (including this one)
-    let streak = 1;
-    for (;;) break;
-    void streak;
-    const eatenBefore = prev.cells.filter((c) => !c.kind).length + 0;
-    void eatenBefore;
-    s.score = prev.score + 10 + (countConsumed(prev, cells) - 1) * 5;
+    // combo: number of items consumed so far (including this one)
+    s.score = prev.score + 10 + (countConsumed(cells) - 1) * 5;
   } else {
     s.score = prev.score;
   }
@@ -76,14 +67,14 @@ function applyAction(prev, dir) {
   return s;
 }
 
-function countConsumed(prev, cells) {
-  let n = 0;
-  for (let i = 0; i < cells.length; i++) if (!cells[i].kind && prev.cells[i].kind) n++;
-  void n;
-  // total consumed so far:
-  return cells.filter((c) => !c.kind).length - (prev.cells.filter((c) => c.kind).length ? 0 : 0);
+// Total items consumed so far: cells that held an item (order != null)
+// whose kind has been cleared.
+function countConsumed(cells) {
+  return cells.filter((c) => !c.kind && c.order != null).length;
 }
 
-function eatenCount(state) { return state.cells.filter((c) => !c.kind).length; }
+function eatenCount(state) { return countConsumed(state.cells); }
 
-module.exports = { initialState, isLegal, applyAction };
+const api = { initialState, isLegal, applyAction };
+if (typeof window !== 'undefined') window.__hf_rules = api;
+if (typeof module !== 'undefined' && module.exports) module.exports = api;
