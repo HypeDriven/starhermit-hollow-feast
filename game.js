@@ -24,25 +24,28 @@
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x141a26);
 
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-  camera.position.set(0, 16.5, 15);
-  camera.lookAt(0, 0, 0);
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+  // Viewing direction (from the board centre towards the camera); the
+  // distance and look-at target are solved in fitCamera() so the whole
+  // playfield stays inside the canvas at any aspect ratio.
+  const CAM_DIR = new THREE.Vector3(0, 16.5, 15).normalize();
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.7));
   const dir = new THREE.DirectionalLight(0xffffff, 1.6);
   dir.position.set(-4, 10, 8);
   scene.add(dir);
 
-  // Board: 10x10 segments; cell size 2.4; origin at center of board.
-  const CELL = 2.4;
-  const boardGeo = new THREE.PlaneGeometry(CELL * 10, CELL * 10);
+  // The logical board is 4x4 with grid pitch STEP; the plane is sized to
+  // that grid plus a rim so every item and the void sit on it.
+  const STEP = 4.2;
+  const BOARD = STEP * 4 + 1.6;
+  const boardGeo = new THREE.PlaneGeometry(BOARD, BOARD);
   const boardMat = new THREE.MeshStandardMaterial({ color: 0x3a5f8a });
   const boardMesh = new THREE.Mesh(boardGeo, boardMat);
   boardMesh.rotation.x = -Math.PI / 2;
   scene.add(boardMesh);
 
-  // The logical board is 4x4. Map grid coords to world positions on the plane.
-  const STEP = 4.2;
+  // Map grid coords to world positions on the plane.
   function worldX(x) { return (x - 1.5) * STEP; }
   function worldZ(y) { return (y - 1.5) * STEP; }
 
@@ -57,11 +60,83 @@
     items.push(m);
   }
 
-  const voidGeo = new THREE.SphereGeometry(1.7, 32, 32);
+  const VOID_R = 1.7;
+  const VOID_Y = 1.6;
+  const voidGeo = new THREE.SphereGeometry(VOID_R, 32, 32);
   const voidMat = new THREE.MeshStandardMaterial({ color: 0xf6e7b2, emissive: new THREE.Color(0xcaa64d) });
   const voidMesh = new THREE.Mesh(voidGeo, voidMat);
-  voidMesh.position.y = 1.6;
+  voidMesh.position.y = VOID_Y;
   scene.add(voidMesh);
+
+  // Everything that must stay on screen: the board's corners and the void's
+  // bounding box over every cell it can occupy (items sit inside that box).
+  const FIT_POINTS = [];
+  const half = BOARD / 2;
+  [[-half, -half], [half, -half], [-half, half], [half, half]].forEach(function (c) {
+    FIT_POINTS.push(new THREE.Vector3(c[0], 0, c[1]));
+  });
+  for (let cy = 0; cy < 4; cy++) {
+    for (let cx = 0; cx < 4; cx++) {
+      const x = worldX(cx);
+      const z = worldZ(cy);
+      [-1, 1].forEach(function (sx) {
+        [-1, 1].forEach(function (sz) {
+          FIT_POINTS.push(new THREE.Vector3(x + sx * VOID_R, VOID_Y + VOID_R, z + sz * VOID_R));
+          FIT_POINTS.push(new THREE.Vector3(x + sx * VOID_R, VOID_Y - VOID_R, z + sz * VOID_R));
+        });
+      });
+    }
+  }
+
+  // Fraction of the frustum the playfield may fill; the rest is breathing room.
+  const FIT_FILL = 0.92;
+  const fitTarget = new THREE.Vector3(0, 0, 0);
+  const tmpV = new THREE.Vector3();
+  const tmpRight = new THREE.Vector3();
+  const tmpUp = new THREE.Vector3();
+
+  // Returns the NDC bounding box of FIT_POINTS for the current camera.
+  function projectedBounds() {
+    const b = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+    for (let i = 0; i < FIT_POINTS.length; i++) {
+      tmpV.copy(FIT_POINTS[i]).project(camera);
+      if (tmpV.x < b.minX) b.minX = tmpV.x;
+      if (tmpV.x > b.maxX) b.maxX = tmpV.x;
+      if (tmpV.y < b.minY) b.minY = tmpV.y;
+      if (tmpV.y > b.maxY) b.maxY = tmpV.y;
+    }
+    return b;
+  }
+
+  // Solve camera distance and look-at target so the projected playfield is
+  // centred and fills FIT_FILL of the viewport in its tighter axis.
+  function fitCamera() {
+    let dist = 40;
+    for (let iter = 0; iter < 12; iter++) {
+      camera.position.copy(CAM_DIR).multiplyScalar(dist).add(fitTarget);
+      camera.lookAt(fitTarget);
+      camera.updateMatrixWorld(true);
+      camera.updateProjectionMatrix();
+      const b = projectedBounds();
+      const cx = (b.minX + b.maxX) / 2;
+      const cy = (b.minY + b.maxY) / 2;
+      const sx = (b.maxX - b.minX) / 2;
+      const sy = (b.maxY - b.minY) / 2;
+      const scale = Math.max(sx, sy) / FIT_FILL;
+      // Shift the target so the box is centred (world units at target depth).
+      const halfH = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * dist;
+      const halfW = halfH * camera.aspect;
+      tmpRight.setFromMatrixColumn(camera.matrixWorld, 0);
+      tmpUp.setFromMatrixColumn(camera.matrixWorld, 1);
+      fitTarget.addScaledVector(tmpRight, cx * halfW).addScaledVector(tmpUp, cy * halfH);
+      dist *= scale;
+      if (Math.abs(scale - 1) < 0.002 && Math.abs(cx) < 0.002 && Math.abs(cy) < 0.002) break;
+    }
+    camera.position.copy(CAM_DIR).multiplyScalar(dist).add(fitTarget);
+    camera.lookAt(fitTarget);
+    camera.updateMatrixWorld(true);
+    camera.updateProjectionMatrix();
+  }
 
   // Game state: 4x4 grid, 12 numbered items in a solvable snake order,
   // column x=3 left empty, void starts at (3,0) next to item 1.
@@ -171,14 +246,44 @@
   const restartBtn = document.getElementById('restart');
   if (restartBtn) restartBtn.addEventListener('click', restart);
 
+  // Size the canvas to the space left for it (see #game-wrap in index.html),
+  // keeping its aspect near square so the board reads well, then refit the
+  // camera so the entire playfield is inside the canvas.
+  const wrap = document.getElementById('game-wrap') || canvas.parentElement;
+  const MAX_ASPECT = 1.6;   // width / height
+  const MIN_ASPECT = 1.0;
   function resize() {
-    const w = canvas.clientWidth || 1;
-    const h = canvas.clientHeight || 1;
+    const availW = Math.max(1, wrap.clientWidth);
+    const availH = Math.max(1, wrap.clientHeight);
+    let w = availW;
+    let h = availH;
+    if (w / h > MAX_ASPECT) w = h * MAX_ASPECT;
+    if (w / h < MIN_ASPECT) h = w / MIN_ASPECT;
+    w = Math.max(1, Math.floor(w));
+    h = Math.max(1, Math.floor(h));
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    camera.updateProjectionMatrix();
+    fitCamera();
   }
   window.addEventListener('resize', resize);
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(function () { resize(); }).observe(wrap);
+  }
+
+  // Test hook: how far the playfield extends in NDC (|x|,|y| <= 1 is on-canvas).
+  window.__hf_debug = {
+    frameBounds: function () {
+      const b = projectedBounds();
+      tmpV.copy(voidMesh.position).project(camera);
+      return {
+        board: b,
+        voidNdc: { x: tmpV.x, y: tmpV.y },
+        canvas: { w: canvas.clientWidth, h: canvas.clientHeight },
+      };
+    },
+  };
 
   syncScene();
   updateHUD();

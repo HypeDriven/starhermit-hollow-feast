@@ -12,7 +12,11 @@
  * on load, so those flows are not applicable here. Everything is local; no
  * StarHermit backend is required.
  *
- * Runs two passes: desktop 1280x800 and mobile 390x844 (touch).
+ * Every move also checks framing: the whole board and the void project inside
+ * the canvas, and the canvas, HUD and controls all sit inside the viewport.
+ *
+ * Runs four passes: desktop 1280x800, mobile 390x844 (touch), landscape phone
+ * 844x390 (touch) and a short desktop window 1280x600.
  * Screenshots land in /tmp/hollow-feast-e2e-<stage>-<pass>.png.
  */
 import http from 'node:http';
@@ -97,6 +101,39 @@ async function runPass(name, viewport, hasTouch, browser) {
     const h = await hud();
     if (h.score !== score || h.eaten !== eaten) {
       throw new Error(`HUD mismatch: expected score=${score} eaten=${eaten}, got score=${h.score} eaten=${h.eaten}`);
+    }
+    await expectNothingCutOff();
+  };
+  // Nothing may be cut off: every fit point of the playfield (board corners,
+  // void at any cell) must project inside the canvas, and the canvas, HUD and
+  // controls must lie inside the viewport.
+  const expectNothingCutOff = async () => {
+    const r = await page.evaluate(() => {
+      const d = window.__hf_debug && window.__hf_debug.frameBounds();
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const off = [];
+      for (const sel of ['canvas#game', '#score', '#eaten', 'button[data-dir]', '#restart', 'h1']) {
+        document.querySelectorAll(sel).forEach((el) => {
+          const b = el.getBoundingClientRect();
+          if (b.width === 0 || b.height === 0 || b.left < -0.5 || b.top < -0.5 || b.right > vw + 0.5 || b.bottom > vh + 0.5) {
+            off.push(`${sel} ${Math.round(b.left)},${Math.round(b.top)}-${Math.round(b.right)},${Math.round(b.bottom)} vs ${vw}x${vh}`);
+          }
+        });
+      }
+      return { d, off, scrollH: document.documentElement.scrollHeight, scrollW: document.documentElement.scrollWidth, vw, vh };
+    });
+    if (!r.d) throw new Error('framing hook missing');
+    const b = r.d.board;
+    const lim = 0.995;
+    if (b.minX < -lim || b.maxX > lim || b.minY < -lim || b.maxY > lim) {
+      throw new Error(`playfield extends past the canvas: ${JSON.stringify(b)}`);
+    }
+    if (Math.abs(r.d.voidNdc.x) > lim || Math.abs(r.d.voidNdc.y) > lim) {
+      throw new Error(`void is off-canvas: ${JSON.stringify(r.d.voidNdc)}`);
+    }
+    if (r.off.length) throw new Error(`elements cut off by the viewport:\n${r.off.join('\n')}`);
+    if (r.scrollH > r.vh + 0.5 || r.scrollW > r.vw + 0.5) {
+      throw new Error(`page overflows viewport: ${r.scrollW}x${r.scrollH} vs ${r.vw}x${r.vh}`);
     }
   };
 
@@ -184,7 +221,9 @@ try {
   });
   await runPass('desktop', { width: 1280, height: 800 }, false, browser);
   await runPass('mobile', { width: 390, height: 844 }, true, browser);
-  console.log('\nE2E PASS — hollow-feast playable end-to-end on desktop and mobile, no page errors');
+  await runPass('landscape', { width: 844, height: 390 }, true, browser);
+  await runPass('short-desktop', { width: 1280, height: 600 }, false, browser);
+  console.log('\nE2E PASS — hollow-feast playable end-to-end on all viewports, nothing cut off, no page errors');
 } finally {
   if (browser) await browser.close();
   server.close();
