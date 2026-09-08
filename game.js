@@ -8,7 +8,16 @@
   const scoreEl = document.getElementById('score');
   const eatenEl = document.getElementById('eaten');
 
-  const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+  } catch (err) {
+    const msg = document.createElement('p');
+    msg.setAttribute('role', 'alert');
+    msg.textContent = 'Hollow Feast needs WebGL to render, and it is unavailable in this browser. Try another browser or device.';
+    canvas.replaceWith(msg);
+    return;
+  }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = 'srgb';
 
@@ -16,7 +25,7 @@
   scene.background = new THREE.Color(0x141a26);
 
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-  camera.position.set(0, 13, 12);
+  camera.position.set(0, 16.5, 15);
   camera.lookAt(0, 0, 0);
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.7));
@@ -33,7 +42,7 @@
   scene.add(boardMesh);
 
   // The logical board is 4x4. Map grid coords to world positions on the plane.
-  const STEP = 5;
+  const STEP = 4.2;
   function worldX(x) { return (x - 1.5) * STEP; }
   function worldZ(y) { return (y - 1.5) * STEP; }
 
@@ -61,19 +70,23 @@
   //   y=2:  9  8  7  .
   //   y=3: 10 11 12  .
   const ORDER = [3, 2, 1, 0, 4, 5, 6, 0, 9, 8, 7, 0, 10, 11, 12, 0];
+  function freshState() {
+    const cells = [];
+    for (let i = 0; i < 16; i++) {
+      const order = ORDER[i];
+      cells.push(order ? { kind: 'item', order: order } : { kind: null, order: null });
+    }
+    const s = rules.initialState(null, cells, [3, 0]);
+    if (!s || !Array.isArray(s.cells)) throw new Error('bad initial');
+    return s;
+  }
   let state;
   try {
     state = window.__hf_state || null;
     if (!state || !Array.isArray(state.cells) || state.cells.length !== 16) throw new Error('bad state');
     if (typeof rules.applyAction !== 'function') throw new Error('no rules');
   } catch (_) {
-    const cells = [];
-    for (let i = 0; i < 16; i++) {
-      const order = ORDER[i];
-      cells.push(order ? { kind: 'item', order: order } : { kind: null, order: null });
-    }
-    state = rules.initialState(null, cells, [3, 0]);
-    if (!state || !Array.isArray(state.cells)) throw new Error('bad initial');
+    state = freshState();
   }
 
   function syncScene() {
@@ -119,12 +132,32 @@
     }
   }
 
+  function restart() {
+    const sfx = window.__hf_sfx;
+    if (sfx) { sfx.unlock(); sfx.event('ui-click'); }
+    state = freshState();
+    syncScene();
+    updateHUD();
+  }
+
+  const KEY_DIRS = {
+    ArrowLeft: 'left', a: 'left',
+    ArrowRight: 'right', d: 'right',
+    ArrowUp: 'up', w: 'up',
+    ArrowDown: 'down', s: 'down',
+  };
   window.addEventListener('keydown', function (e) {
-    const k = e.key;
-    if (k === 'ArrowLeft' || k === 'a') act('left');
-    else if (k === 'ArrowRight' || k === 'd') act('right');
-    else if (k === 'ArrowUp' || k === 'w') act('up');
-    else if (k === 'ArrowDown' || k === 's') act('down');
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'r' || e.key === 'R') {
+      e.preventDefault();
+      restart();
+      return;
+    }
+    const dir = KEY_DIRS[e.key];
+    if (dir) {
+      e.preventDefault();
+      act(dir);
+    }
   });
 
   document.querySelectorAll('button[data-dir]').forEach(function (btn) {
@@ -134,6 +167,9 @@
         act(btn.getAttribute('data-dir'));
     });
   });
+
+  const restartBtn = document.getElementById('restart');
+  if (restartBtn) restartBtn.addEventListener('click', restart);
 
   function resize() {
     const w = canvas.clientWidth || 1;

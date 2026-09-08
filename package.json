@@ -4,9 +4,13 @@
   "private": true,
   "description": "Hollow Feast - browser game (index 56)",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:e2e": "node tests/e2e.mjs"
   },
   "dependencies": {
     "three": "^0.178.0"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.62.1"
   }
 }

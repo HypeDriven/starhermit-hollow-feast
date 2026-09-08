@@ -28,11 +28,12 @@
   <div class="hud-cell"><span>Score</span><b id="score">0</b></div>
   <div class="hud-cell"><span>Eaten</span><b id="eaten">0 / 12</b></div>
 </section>
-<nav id="controls" aria-label="Movement controls">
-  <button type="button" class="ctl" data-dir="left">&#8592;</button>
-  <button type="button" class="ctl" data-dir="up">&#8593;</button>
-  <button type="button" class="ctl" data-dir="down">&#8595;</button>
-  <button type="button" class="ctl" data-dir="right">&#8594;</button>
+<nav id="controls" aria-label="Game controls">
+  <button type="button" class="ctl" data-dir="left" aria-label="Move left">&#8592;</button>
+  <button type="button" class="ctl" data-dir="up" aria-label="Move up">&#8593;</button>
+  <button type="button" class="ctl" data-dir="down" aria-label="Move down">&#8595;</button>
+  <button type="button" class="ctl" data-dir="right" aria-label="Move right">&#8594;</button>
+  <button type="button" class="ctl" id="restart" aria-label="Restart round">&#8635;</button>
 </nav>
 <script src="./rules.js"></script>
 <script src="./js/sfx.js"></script>

@@ -8,19 +8,40 @@ const ROOT = __dirname;
 const MIME = {
   '.html': 'text/html',
   '.js': 'application/javascript',
+  '.mjs': 'application/javascript',
+  '.json': 'application/json',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+  '.txt': 'text/plain',
+  '.md': 'text/markdown',
   '.opus': 'audio/ogg',
 };
 
 function serve(req, res) {
-  let p = req.url === '/' ? '/index.html' : req.url.split('?')[0];
-  const file = path.join(ROOT, p);
+  let p = req.url.split('?')[0];
+  if (p === '/') p = '/index.html';
+  let decoded;
+  try {
+    decoded = decodeURIComponent(p);
+  } catch (_) {
+    res.writeHead(400);
+    res.end('Bad request');
+    return;
+  }
+  const file = path.join(ROOT, path.normalize(decoded));
+  if ((file !== ROOT && !file.startsWith(ROOT + path.sep)) || path.relative(ROOT, file).split(path.sep).some(part => part.startsWith('.'))) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
   fs.readFile(file, (err, data) => {
     if (err) {
       res.writeHead(404);
       res.end('Not found');
       return;
     }
-    const ext = path.extname(p).toLowerCase();
+    const ext = path.extname(file).toLowerCase();
     res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
     res.end(data);
   });

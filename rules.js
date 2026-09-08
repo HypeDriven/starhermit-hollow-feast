@@ -41,6 +41,7 @@ function applyAction(prev, dir) {
     s.score = prev.score;
     s.invalidActions = prev.invalidActions + 1;
     s.tick = prev.tick + 1;
+    s.won = prev.won;
     return s;
   }
   const [dx, dy] = DIRS[dir];
