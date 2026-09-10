@@ -16,6 +16,8 @@ const MIME = {
   '.txt': 'text/plain',
   '.md': 'text/markdown',
   '.opus': 'audio/ogg',
+  '.webp': 'image/webp',
+  '.css': 'text/css',
 };
 
 function serve(req, res) {
@@ -27,6 +29,14 @@ function serve(req, res) {
   } catch (_) {
     res.writeHead(400);
     res.end('Bad request');
+    return;
+  }
+  // Dev-only trees are never shipped or served.
+  const rel = path.normalize(decoded).replace(/^[\\/]+/, '');
+  const top = rel.split(/[\\/]/)[0];
+  if (top === 'tests' || top === 'tools' || top === 'node_modules') {
+    res.writeHead(403);
+    res.end('Forbidden');
     return;
   }
   const file = path.join(ROOT, path.normalize(decoded));

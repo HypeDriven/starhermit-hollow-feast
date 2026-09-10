@@ -48,7 +48,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MIME = {
   '.html': 'text/html', '.js': 'application/javascript', '.mjs': 'application/javascript',
   '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml',
-  '.png': 'image/png', '.ico': 'image/x-icon', '.wav': 'audio/wav', '.mp3': 'audio/mpeg',
+  '.png': 'image/png', '.webp': 'image/webp', '.css': 'text/css', '.ico': 'image/x-icon', '.wav': 'audio/wav', '.mp3': 'audio/mpeg',
   '.ogg': 'audio/ogg', '.opus': 'audio/ogg', '.glb': 'model/gltf-binary',
   '.woff2': 'font/woff2', '.ts': 'application/javascript', '.md': 'text/markdown',
   '.txt': 'text/plain',
@@ -169,6 +169,7 @@ async function runPass(name, viewport, hasTouch, browser) {
         await expectHUD(String(expectedScore(i + 1)), `${i + 1} / 12`);
         if (i === 5) await page.screenshot({ path: SHOT('midplay', name) });
       }
+      if (!(await page.locator('#win-banner').isVisible())) throw new Error('win banner not shown');
       await page.screenshot({ path: SHOT('win', name) });
     });
 
@@ -182,6 +183,7 @@ async function runPass(name, viewport, hasTouch, browser) {
     await step('restart resets the round', async () => {
       await page.click('#restart');
       await expectHUD('0', '0 / 12');
+      if (await page.locator('#win-banner').isVisible()) throw new Error('win banner still shown after restart');
       // play is possible again after restart
       await page.click('button[data-dir="left"]');
       await expectHUD('10', '1 / 12');

@@ -82,5 +82,29 @@
     "seconds": 1,
     "prompt": "A quick soft plastic key click, subtle interface feedback.",
     "event": "ui-click"
+  },
+  {
+    "name": "wrong-order-a",
+    "seconds": 1,
+    "prompt": "A soft dry refusal: two muted wooden block clicks with a short downward pitch drop, gentle and non-punishing.",
+    "event": "wrong-order"
+  },
+  {
+    "name": "wrong-order-b",
+    "seconds": 1,
+    "prompt": "A brief muffled cloth-covered bell tap that stops abruptly, a polite 'not yet' cue.",
+    "event": "wrong-order"
+  },
+  {
+    "name": "restart-sweep-a",
+    "seconds": 1,
+    "prompt": "A short reverse airy sweep ending in a soft breathy pop, like a table being wiped clean and reset.",
+    "event": "restart"
+  },
+  {
+    "name": "restart-sweep-b",
+    "seconds": 1,
+    "prompt": "A quick rising whoosh of air with a light granular shimmer, a fresh board being laid out.",
+    "event": "restart"
   }
 ]

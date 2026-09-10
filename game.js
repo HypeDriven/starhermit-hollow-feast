@@ -7,6 +7,7 @@
   const canvas = document.getElementById('game');
   const scoreEl = document.getElementById('score');
   const eatenEl = document.getElementById('eaten');
+  const winEl = document.getElementById('win-banner');
 
   let renderer;
   try {
@@ -41,6 +42,23 @@
   const BOARD = STEP * 4 + 1.6;
   const boardGeo = new THREE.PlaneGeometry(BOARD, BOARD);
   const boardMat = new THREE.MeshStandardMaterial({ color: 0x3a5f8a });
+  // Slate surface texture. The flat colour above stays as the fallback, so a
+  // missing or failed texture load leaves the board fully readable.
+  try {
+    new THREE.TextureLoader().load(
+      'assets/board-slate.webp',
+      function (tex) {
+        tex.colorSpace = THREE.SRGBColorSpace || tex.colorSpace;
+        tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+        tex.anisotropy = renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1;
+        boardMat.map = tex;
+        boardMat.color.set(0xffffff);
+        boardMat.needsUpdate = true;
+      },
+      undefined,
+      function () { /* keep the flat-colour board */ }
+    );
+  } catch (_) { /* keep the flat-colour board */ }
   const boardMesh = new THREE.Mesh(boardGeo, boardMat);
   boardMesh.rotation.x = -Math.PI / 2;
   scene.add(boardMesh);
@@ -164,6 +182,19 @@
     state = freshState();
   }
 
+  // The eat order is fixed but invisible on the meshes, so the next morsel is
+  // marked by an emissive lift: it is the only warm-glowing item on the board.
+  const NEXT_EMISSIVE = 0xff8c3a;
+  function highlightNext() {
+    const next = state.cells.filter(function (c) { return !c.kind && c.order != null; }).length + 1;
+    for (let i = 0; i < items.length; i++) {
+      const isNext = !state.won && (i + 1) === next;
+      items[i].material.emissive.setHex(isNext ? NEXT_EMISSIVE : 0x000000);
+      items[i].material.emissiveIntensity = isNext ? 0.85 : 0;
+      items[i].scale.setScalar(isNext ? 1.18 : 1);
+    }
+  }
+
   function syncScene() {
     // Position item meshes from state: mesh i shows the item with order i+1.
     for (let j = 0; j < state.cells.length; j++) {
@@ -178,16 +209,30 @@
     }
     voidMesh.position.x = worldX(state.voidPos[0]);
     voidMesh.position.z = worldZ(state.voidPos[1]);
+    highlightNext();
   }
 
   function updateHUD() {
     scoreEl.textContent = String(state.score);
     const eaten = state.cells.filter(function (c) { return !c.kind && c.order != null; }).length;
     eatenEl.textContent = eaten + ' / 12';
+    if (winEl) winEl.hidden = !state.won;
   }
 
   function renderFrame() {
     renderer.render(scene, camera);
+  }
+
+  // Two distinct refusals: leaving the board ('invalid') and reaching for a
+  // morsel that is not the next one in the order ('wrong-order').
+  const STEP_DIRS = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] };
+  function refusalKind(prev, dir) {
+    const d = STEP_DIRS[dir];
+    if (!d) return 'invalid';
+    const x = prev.voidPos[0] + d[0];
+    const y = prev.voidPos[1] + d[1];
+    if (x < 0 || x > 3 || y < 0 || y > 3) return 'invalid';
+    return 'wrong-order';
   }
 
   function act(dir) {
@@ -202,14 +247,14 @@
     if (sfx) {
       if (next.won && !prev.won) sfx.event('win');
       else if (next.score > prev.score) sfx.event('eat');
-      else if (next.invalidActions > prev.invalidActions) sfx.event('invalid');
+      else if (next.invalidActions > prev.invalidActions) sfx.event(refusalKind(prev, dir));
       else sfx.event('void-move');
     }
   }
 
   function restart() {
     const sfx = window.__hf_sfx;
-    if (sfx) { sfx.unlock(); sfx.event('ui-click'); }
+    if (sfx) { sfx.unlock(); sfx.event('restart'); }
     state = freshState();
     syncScene();
     updateHUD();

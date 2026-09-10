@@ -3,7 +3,7 @@
 /*
  * Hollow Feast sample SFX engine.
  *
- * Named audio events (void-move, eat, invalid, win, ui-click) map to authored
+ * Named audio events (void-move, eat, invalid, wrong-order, restart, win, ui-click) map to authored
  * one-shot clips under sfx/<name>.opus. Clips are lazy-fetched, decoded, and
  * cached only after the AudioContext has been unlocked by a user gesture.
  * Each event prefers its mapped sample; the procedural synthesis below runs
@@ -14,6 +14,8 @@
     'void-move': ['void-slide-a', 'void-slide-b', 'void-slide-c', 'void-slide-d'],
     'eat': ['gobble-a', 'gobble-b', 'gobble-c', 'gobble-d'],
     'invalid': ['thud-denied-a', 'thud-denied-b'],
+    'wrong-order': ['wrong-order-a', 'wrong-order-b'],
+    'restart': ['restart-sweep-a', 'restart-sweep-b'],
     'win': ['feast-complete-a', 'feast-complete-b'],
     'ui-click': ['ui-tap-a', 'ui-tap-b'],
   };
@@ -119,6 +121,13 @@
         break;
       case 'invalid':
         tone(110, 80, 0.12, 'square', 0.22);
+        break;
+      case 'wrong-order':
+        tone(300, 240, 0.07, 'triangle', 0.2);
+        tone(240, 200, 0.07, 'triangle', 0.18, 0.08);
+        break;
+      case 'restart':
+        tone(180, 520, 0.18, 'sine', 0.22);
         break;
       case 'win':
         tone(392, 392, 0.14, 'triangle', 0.3);
