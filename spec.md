@@ -126,7 +126,8 @@ actions are counted separately as the cleanliness metric of a run.
 `won` is sticky: after the twelfth morsel every further input is refused and only increments `tick` and
 `invalidActions` (asserted by `tests/rules.test.mjs` and by the rules prelude of `tests/e2e.mjs`).
 Two runs are compared by, in order: completion (`won`), then fewer `invalidActions`, then lower `tick`.
-Since every board is the same board, that ordering is fully determined by the input log.
+Since every board is the same board, that ordering is fully determined by the input log. `game.js::onWon`
+applies exactly this ordering when replacing the persisted best line (score, then refusals, then ticks).
 
 ### RNG, undo, hints
 
@@ -139,10 +140,11 @@ There is no undo and no hint button — the "next" glow *is* the hint, always on
 ## 5. Modes and progression
 
 The game ships **one mode**: a single fixed board, played immediately, restartable. There is no mode select,
-no difficulty setting, no daily seed, no unlock track and no persistence between page loads. This is
-deliberate at the current scope: the board is a twelve-move exercise whose whole content is its order, and a
-mode picker would cost more of the player's first ten seconds than it returns. See
-"Design intent not yet implemented" for the seeded-layout hook that already exists in the rules.
+no difficulty setting, no daily seed and no unlock track. Mid-round progress and personal records do persist
+between loads via the platform save document (§12), but the mode question is deliberate at the current scope:
+the board is a twelve-move exercise whose whole content is its order, and a mode picker would cost more of
+the player's first ten seconds than it returns. See "Design intent not yet implemented" for the
+seeded-layout hook that already exists in the rules.
 
 ---
 
@@ -309,13 +311,29 @@ Nine locales ship: **en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it
 `starhermit.txt` declares `name=Hollow Feast`, `launch=index.html`, an `owner` id, and `cover=coverart.png`,
 which is what the platform needs to list and launch the game (https://wiki.starhermit.com/).
 
-The game uses **no** further platform features today, and this is a scope decision, not an oversight:
-there is no identity lookup, no presence, no leaderboard submission, no achievement delivery, no cloud save
-and no hosted session. Every result is local and non-authoritative, so a global board would be unverifiable
-without a replay validator. `starhermit.txt` deliberately declares no `server=` key: `server.js` is a static
+Hosted launches carry a StarHermit launch token in the URL fragment (`#game_token=<jwt>`), handled by
+`js/platform.js` (loaded before `game.js`, null-checked everywhere): the token is read once and stripped
+from the URL, the `sub`/`game_scope` claims are decoded (slug never hard-coded), every `/api` call sends
+`Authorization: Bearer`, and a fresh token is re-minted every 45 minutes via
+`POST /api/v1/games/{slug}/launch-token` (60 s retry on failure). The account nickname
+(`GET /api/v1/users/{sub}/profile` — never `/api/v1/me`, never usernames; `"Player " + id.slice(0,8)`
+fallback) is shown in the HUD player cell next to the sync chip.
+
+Progress and personal records — the best line (score, refusals, ticks), win/clean-win counts and the
+mid-round board — live in one JSON save document. `localStorage['hf.save.v1']` is the offline cache; when a
+token is present the document is mirrored to the platform cloud-save slot (`GET`/`PUT
+/api/v1/me/cloud-saves/{slug}`, zip+base64 via the stored-zip helper in `js/platform.js`), with a 2 s
+debounce, a `pagehide`/`visibilitychange` flush, and remote-preferred load. The HUD sync cell shows
+local/loading/saving/synced/offline/error. With no token (local dev, or a player who refuses auth) the
+adapter is fully inert — zero network calls — and play is identical to a local session; query-param token
+fallbacks exist for local dev only and are refused on `*.starhermit.com` hosts.
+
+There is still no presence, no achievement delivery and no leaderboard submission: every result is local
+and non-authoritative, so a global board would remain unverifiable without a replay validator.
+`starhermit.txt` deliberately declares no `server=` key: `server.js` is a static
 development file host, not a game script, and it is never uploaded as authoritative logic.
 
-The rules engine is already shaped for the platform features it does not yet use: pure functions, a
+The rules engine is already shaped for the one platform feature still missing: pure functions, a
 serialisable state, a monotonic `tick`, an explicit terminal flag, and a fully deterministic replay from an
 input log — the pieces a validated leaderboard submission would need.
 
@@ -324,14 +342,16 @@ input log — the pieces a validated leaderboard submission would need.
 ## 13. Technical architecture
 
 - **Layering.** `rules.js` (pure, no globals beyond its export) ← `game.js` (all DOM and three.js) ←
-  `index.html` (structure and palette). `js/sfx.js` and `js/i18n.js` are independent leaves that expose
-  `window.__hf_sfx` / `window.__hf_i18n` and degrade to no-ops if absent — `game.js` null-checks the audio
-  module on every call.
+  `index.html` (structure and palette). `js/sfx.js`, `js/i18n.js` and `js/platform.js` are independent
+  leaves that expose `window.__hf_sfx` / `window.__hf_i18n` / `window.__hf_platform` and degrade to no-ops
+  if absent — `game.js` null-checks the audio module on every call and treats the platform adapter as
+  optional (no token → local-only records, zero network calls).
 - **Determinism.** `applyAction` is a pure function of `(state, dir)` and never mutates its input
   (asserted in `tests/rules.test.mjs`), so an input log replays to an identical state. `game.js` may adopt a
   pre-seeded `window.__hf_state` on boot and falls back to the authored layout if it is malformed.
-- **Persistence.** None by design, except the optional `hf.lang` locale preference read from
-  `localStorage`. A reload is a fresh board.
+- **Persistence.** The platform save document (`localStorage['hf.save.v1']`, cloud-mirrored when a launch
+  token is present; see §12) holds the best line, win/clean-win counts and the mid-round board, so a reload
+  resumes an unfinished round. The `hf.lang` locale preference stays an independent localStorage read.
 - **Rendering budget.** One `requestAnimationFrame` render loop; ~14 meshes, 2 lights, no post-processing,
   no shadow maps; device pixel ratio capped at 2. Camera refitting runs only on resize, driven by a
   `ResizeObserver` on `#game-wrap` plus the `resize` event, and converges in at most 12 iterations.
@@ -347,10 +367,13 @@ input log — the pieces a validated leaderboard submission would need.
 
 ## 14. Testing and acceptance criteria
 
-**`npm test`** (`node --test tests/*.test.mjs`, zero dependencies) — 8 tests over `rules.js`: initial board
+**`npm test`** (`node --test tests/*.test.mjs`, zero dependencies) — 8 tests over `rules.js` (initial board
 shape, off-board illegality, order-gated edibility, the cost of an illegal action, non-mutation of the input
 state, the full 12-morsel scoring ladder to 450, scoring nothing for re-entering an eaten cell, and the
-sticky terminal state.
+sticky terminal state) plus 7 over `js/platform.js` against a stub window/document: the stored-zip helper,
+fragment token read-and-strip, hosted-host query-token refusal, the dev query fallback, offline inertness
+(zero fetches, localStorage cache), Bearer on every hosted call with nickname resolution and the cloud-save
+PUT payload, and the `"Player "+id8` nickname fallback.
 
 **`npm run test:e2e`** (`tests/e2e.mjs`, playwright-core + headless Chrome) — a rules prelude, then four
 passes over the real UI: desktop 1280×800, mobile 390×844 (touch), landscape phone 844×390 (touch) and a
@@ -400,10 +423,12 @@ there is no humanoid to animate.
 
 - **One board, forever.** The layout is a constant. Once the order is memorised, a solve is muscle memory;
   there is nothing further to master.
-- **No persistence.** Best score, clean-run count and the locale choice (beyond a manually written
-  `hf.lang`) do not survive a reload.
-- **Refusals are counted but never shown.** `invalidActions` exists in state and is used for tie-breaking in
-  this document, but no HUD cell displays it, so the "clean run" goal is currently only in the player's head.
+- **Records are minimal.** Only the best line, win/clean-win counts and the mid-round board persist
+  (§12) — there are still no unlocks, seeded layouts, run history or any way to compare against other
+  players.
+- **Refusals are only visible in the best line.** `invalidActions` drives tie-breaking, and the HUD best
+  cell shows the refusal count of the recorded best run (`450 · 0R · 12T`), but the current run's own
+  refusal count is not displayed, so the "clean run" goal during play is only in the player's head.
 - **No gamepad support.** Keyboard, pointer and touch only.
 - **No audio settings in the UI.** `setMuted` / `setVolume` exist on `window.__hf_sfx` but nothing on screen
   calls them; the player's only recourse is the browser tab mute.

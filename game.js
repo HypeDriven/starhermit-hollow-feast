@@ -7,6 +7,7 @@
   const canvas = document.getElementById('game');
   const scoreEl = document.getElementById('score');
   const eatenEl = document.getElementById('eaten');
+  const bestEl = document.getElementById('best');
   const winEl = document.getElementById('win-banner');
 
   let renderer;
@@ -182,6 +183,91 @@
     state = freshState();
   }
 
+  // Platform bridge: records (best line, win counts, mid-round board) live in
+  // the platform save document — localStorage offline cache, cloud mirror when
+  // launched with a token. An unfinished round resumes where it left off; a
+  // remote document arriving later only replaces a board nobody has touched.
+  const platform = window.__hf_platform || null;
+  let records = platform ? platform.records() : { best: null, wins: 0, cleanWins: 0, inProgress: null };
+
+  function reviveState(summary) {
+    try {
+      if (!summary || summary.won) return null;
+      if (!Array.isArray(summary.cells) || summary.cells.length !== 16) return null;
+      const cells = summary.cells.map(function (c) {
+        if (!c || typeof c !== 'object') throw new Error('bad cell');
+        return { kind: c.kind === 'item' ? 'item' : null, order: typeof c.order === 'number' ? c.order : null };
+      });
+      if (!cells.some(function (c) { return c.kind; })) return null;
+      const s = rules.initialState(null, cells, summary.voidPos);
+      s.score = typeof summary.score === 'number' ? summary.score : 0;
+      s.invalidActions = typeof summary.invalidActions === 'number' ? summary.invalidActions : 0;
+      s.tick = typeof summary.tick === 'number' ? summary.tick : 0;
+      return s;
+    } catch (_) { return null; }
+  }
+
+  if (!window.__hf_state) {
+    const revived = reviveState(records.inProgress);
+    if (revived) state = revived;
+  }
+
+  if (platform) {
+    platform.onDoc(function (doc) {
+      if (!doc || !doc.records) return;
+      records = doc.records;
+      displayBest();
+      if (!window.__hf_state && state && !state.won && state.tick === 0 && records.inProgress && !records.inProgress.won) {
+        const r = reviveState(records.inProgress);
+        if (r) { state = r; syncScene(); updateHUD(); }
+      }
+    });
+  }
+
+  function progressSummary(s) {
+    return {
+      tick: s.tick, score: s.score, invalidActions: s.invalidActions, won: !!s.won,
+      cells: s.cells, voidPos: s.voidPos,
+    };
+  }
+
+  function persistRecords() {
+    if (platform) platform.saveDoc({ records: records });
+  }
+
+  function saveProgress(s) {
+    records.inProgress = progressSummary(s);
+    persistRecords();
+  }
+
+  // Best-line ordering matches the §4 tie-breaks: score, then fewer refusals,
+  // then fewer ticks.
+  function onWon(finalState) {
+    records.wins = (records.wins || 0) + 1;
+    if (finalState.invalidActions === 0) records.cleanWins = (records.cleanWins || 0) + 1;
+    const candidate = {
+      score: finalState.score,
+      refusals: finalState.invalidActions,
+      ticks: finalState.tick,
+      when: Date.now(),
+    };
+    const best = records.best;
+    if (!best
+      || candidate.score > best.score
+      || (candidate.score === best.score && candidate.refusals < best.refusals)
+      || (candidate.score === best.score && candidate.refusals === best.refusals && candidate.ticks < best.ticks)) {
+      records.best = candidate;
+    }
+    records.inProgress = null;
+    persistRecords();
+  }
+
+  function displayBest() {
+    if (!bestEl) return;
+    const best = records.best;
+    bestEl.textContent = best ? best.score + ' · ' + best.refusals + 'R · ' + best.ticks + 'T' : '—';
+  }
+
   // The eat order is fixed but invisible on the meshes, so the next morsel is
   // marked by an emissive lift: it is the only warm-glowing item on the board.
   const NEXT_EMISSIVE = 0xff8c3a;
@@ -216,6 +302,7 @@
     scoreEl.textContent = String(state.score);
     const eaten = state.cells.filter(function (c) { return !c.kind && c.order != null; }).length;
     eatenEl.textContent = eaten + ' / 12';
+    displayBest();
     if (winEl) winEl.hidden = !state.won;
   }
 
@@ -244,6 +331,8 @@
     state = next;
     syncScene();
     updateHUD();
+    if (next.won && !prev.won) onWon(next);
+    else if (!next.won) saveProgress(next);
     if (sfx) {
       if (next.won && !prev.won) sfx.event('win');
       else if (next.score > prev.score) sfx.event('eat');
@@ -256,6 +345,8 @@
     const sfx = window.__hf_sfx;
     if (sfx) { sfx.unlock(); sfx.event('restart'); }
     state = freshState();
+    records.inProgress = null;
+    persistRecords();
     syncScene();
     updateHUD();
   }

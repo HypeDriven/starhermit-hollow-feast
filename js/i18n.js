@@ -20,6 +20,10 @@
       moveLeft: 'Move left', moveUp: 'Move up', moveDown: 'Move down', moveRight: 'Move right',
       restart: 'Restart round', playfield: 'Hollow Feast playfield',
       win: 'Feast complete!',
+      player: 'Player', best: 'Best', sync: 'Sync',
+      syncLocal: 'Local', syncLoading: 'Loading', syncSaving: 'Saving',
+      syncSynced: 'Synced', syncOffline: 'Offline', syncError: 'Error',
+      localPlayer: 'Local player',
     },
     'en-GB': {
       controls: 'Game controls',
@@ -29,6 +33,10 @@
       moveLeft: 'Move left', moveUp: 'Move up', moveDown: 'Move down', moveRight: 'Move right',
       restart: 'Restart round', playfield: 'Hollow Feast playfield',
       win: 'Feast complete!',
+      player: 'Player', best: 'Best', sync: 'Sync',
+      syncLocal: 'Local', syncLoading: 'Loading', syncSaving: 'Saving',
+      syncSynced: 'Synced', syncOffline: 'Offline', syncError: 'Error',
+      localPlayer: 'Local player',
     },
     'es-419': {
       controls: 'Controles del juego',
@@ -38,6 +46,10 @@
       moveLeft: 'Mover a la izquierda', moveUp: 'Mover arriba', moveDown: 'Mover abajo', moveRight: 'Mover a la derecha',
       restart: 'Reiniciar ronda', playfield: 'Campo de juego de Hollow Feast',
       win: '¡Festín completo!',
+      player: 'Jugador', best: 'Mejor', sync: 'Sinc.',
+      syncLocal: 'Local', syncLoading: 'Cargando', syncSaving: 'Guardando',
+      syncSynced: 'Sincronizado', syncOffline: 'Sin conexión', syncError: 'Error',
+      localPlayer: 'Jugador local',
     },
     'es-ES': {
       controls: 'Controles del juego',
@@ -47,6 +59,10 @@
       moveLeft: 'Mover a la izquierda', moveUp: 'Mover arriba', moveDown: 'Mover abajo', moveRight: 'Mover a la derecha',
       restart: 'Reiniciar ronda', playfield: 'Campo de juego de Hollow Feast',
       win: '¡Festín completo!',
+      player: 'Jugador', best: 'Mejor', sync: 'Sinc.',
+      syncLocal: 'Local', syncLoading: 'Cargando', syncSaving: 'Guardando',
+      syncSynced: 'Sincronizado', syncOffline: 'Sin conexión', syncError: 'Error',
+      localPlayer: 'Jugador local',
     },
     'de-DE': {
       controls: 'Spielsteuerung',
@@ -56,6 +72,10 @@
       moveLeft: 'Nach links bewegen', moveUp: 'Nach oben bewegen', moveDown: 'Nach unten bewegen', moveRight: 'Nach rechts bewegen',
       restart: 'Runde neu starten', playfield: 'Hollow-Feast-Spielfeld',
       win: 'Festmahl vollendet!',
+      player: 'Spieler', best: 'Rekord', sync: 'Sync',
+      syncLocal: 'Lokal', syncLoading: 'Laden', syncSaving: 'Speichert',
+      syncSynced: 'Gesichert', syncOffline: 'Offline', syncError: 'Fehler',
+      localPlayer: 'Lokaler Spieler',
     },
     'fr-FR': {
       controls: 'Commandes du jeu',
@@ -65,6 +85,10 @@
       moveLeft: 'Aller à gauche', moveUp: 'Aller vers le haut', moveDown: 'Aller vers le bas', moveRight: 'Aller à droite',
       restart: 'Recommencer la manche', playfield: 'Aire de jeu de Hollow Feast',
       win: 'Festin achevé !',
+      player: 'Joueur', best: 'Record', sync: 'Sync',
+      syncLocal: 'Local', syncLoading: 'Chargement', syncSaving: 'Sauvegarde',
+      syncSynced: 'Synchronisé', syncOffline: 'Hors ligne', syncError: 'Erreur',
+      localPlayer: 'Joueur local',
     },
     'fr-CA': {
       controls: 'Commandes du jeu',
@@ -74,6 +98,10 @@
       moveLeft: 'Aller à gauche', moveUp: 'Aller vers le haut', moveDown: 'Aller vers le bas', moveRight: 'Aller à droite',
       restart: 'Recommencer la manche', playfield: 'Aire de jeu de Hollow Feast',
       win: 'Festin terminé !',
+      player: 'Joueur', best: 'Record', sync: 'Sync',
+      syncLocal: 'Local', syncLoading: 'Chargement', syncSaving: 'Sauvegarde',
+      syncSynced: 'Synchronisé', syncOffline: 'Hors ligne', syncError: 'Erreur',
+      localPlayer: 'Joueur local',
     },
     'pt-BR': {
       controls: 'Controles do jogo',
@@ -83,6 +111,10 @@
       moveLeft: 'Mover para a esquerda', moveUp: 'Mover para cima', moveDown: 'Mover para baixo', moveRight: 'Mover para a direita',
       restart: 'Reiniciar rodada', playfield: 'Campo de jogo de Hollow Feast',
       win: 'Banquete completo!',
+      player: 'Jogador', best: 'Melhor', sync: 'Sinc.',
+      syncLocal: 'Local', syncLoading: 'Carregando', syncSaving: 'Salvando',
+      syncSynced: 'Sincronizado', syncOffline: 'Offline', syncError: 'Erro',
+      localPlayer: 'Jogador local',
     },
     'it-IT': {
       controls: 'Comandi di gioco',
@@ -92,6 +124,10 @@
       moveLeft: 'Sposta a sinistra', moveUp: 'Sposta in alto', moveDown: 'Sposta in basso', moveRight: 'Sposta a destra',
       restart: 'Ricomincia il round', playfield: 'Campo di gioco di Hollow Feast',
       win: 'Banchetto completato!',
+      player: 'Giocatore', best: 'Migliore', sync: 'Sinc.',
+      syncLocal: 'Locale', syncLoading: 'Caricamento', syncSaving: 'Salvataggio',
+      syncSynced: 'Sincronizzato', syncOffline: 'Offline', syncError: 'Errore',
+      localPlayer: 'Giocatore locale',
     },
   };
 

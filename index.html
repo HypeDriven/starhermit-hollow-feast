@@ -23,8 +23,13 @@
   @media (prefers-reduced-motion: no-preference) { #win-banner { animation: hf-pop 220ms ease-out; } }
   @keyframes hf-pop { from { opacity: 0; transform: translate(-50%, -50%) scale(0.94); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
   canvas#game { display: block; background: #141a26; border-radius: 8px; touch-action: none; }
-  .hud-row { flex: none; display: flex; gap: 16px; margin-top: 8px; font-size: 15px; color: #dfe7f3; text-align: center; }
+  .hud-row { flex: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; margin-top: 8px; font-size: 15px; color: #dfe7f3; text-align: center; }
   .hud-cell b { display: block; font-size: 20px; color: #ffffff; font-weight: 600; }
+  #player { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #sync[data-state="local"], #sync[data-state="loading"] { color: #9aa7bd; }
+  #sync[data-state="saving"] { color: #e8cf7f; }
+  #sync[data-state="synced"] { color: #8fd6a0; }
+  #sync[data-state="offline"], #sync[data-state="error"] { color: #e38f8f; }
   #controls { flex: none; margin-top: 8px; padding-bottom: 12px; }
   button.ctl { width: 56px; height: 44px; border-radius: 9px; border: none; background: #233047; color: #ffffff; font-size: 18px; cursor: pointer; padding: 0; margin: 0; }
   button.ctl:hover { filter: brightness(1.15); }
@@ -55,6 +60,9 @@
 <section class="hud-row" aria-live="polite">
   <div class="hud-cell"><span data-i18n="score">Score</span><b id="score">0</b></div>
   <div class="hud-cell"><span data-i18n="eaten">Eaten</span><b id="eaten">0 / 12</b></div>
+  <div class="hud-cell"><span data-i18n="player">Player</span><b id="player">—</b></div>
+  <div class="hud-cell"><span data-i18n="best">Best</span><b id="best">—</b></div>
+  <div class="hud-cell"><span data-i18n="sync">Sync</span><b id="sync" data-state="local">Local</b></div>
 </section>
 <nav id="controls" data-i18n-aria="controls" aria-label="Game controls">
   <button type="button" class="ctl" data-dir="left" data-i18n-aria="moveLeft" aria-label="Move left">&#8592;</button>
@@ -66,6 +74,7 @@
 <script src="./js/i18n.js"></script>
 <script src="./rules.js"></script>
 <script src="./js/sfx.js"></script>
+<script src="./js/platform.js?v=feast-2"></script>
 <script type="module">
   import * as THREE from './js/three.module.min.js?v=feast-2';
   window.THREE = THREE;
