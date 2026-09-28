@@ -21,17 +21,20 @@ A hungry pale void hovers over a slate banquet table and must swallow twelve glo
 
 | Path | Responsibility |
 |---|---|
-| `index.html` | Entry point: layout, palette, header, canvas box, HUD, control bar, win banner. Loads scripts in order i18n → rules → sfx → three.js → game. |
+| `index.html` | Entry point: layout, palette, header, canvas box, HUD, control bar, win banner, Settings dialog, import map. Loads scripts in order i18n → rules → sfx → platform → gfx → three.js → post add-ons (optional) → game. |
 | `rules.js` | Pure rules engine. `initialState`, `isLegal`, `applyAction`. No DOM, no three.js. Exported to `window.__hf_rules` and to CommonJS for tests. |
 | `game.js` | Presentation and input: scene, camera fit, mesh sync, HUD, keyboard/pointer handling, audio event dispatch, `window.__hf_debug` framing hook. |
 | `js/i18n.js` | Nine-locale string table, locale selection, `data-i18n` / `data-i18n-aria` application. |
 | `js/sfx.js` | Web Audio engine: event → clip round-robin with a procedural synth fallback. |
-| `js/three.module.min.js`, `js/three.core.min.js` | Vendored three.js r178. |
+| `js/three.module.min.js`, `js/three.core.min.js` | Vendored three.js r178 (import-mapped as `three`). |
+| `js/gfx.js` | Pure graphics quality model: presets, per-effect tiers, GPU detection, `resolve`, `presetTier`, `choosePreset`, `describe`. Exported to `window.__hf_gfx` and CommonJS. |
+| `js/post.js`, `js/addons/**` | Optional render add-ons: EffectComposer passes (Render, GTAO, UnrealBloom, Shader, Output, SMAA), FXAA shader and RoomEnvironment, vendored from three.js r178 `examples/jsm` (import-mapped as `three/addons/`). Loaded dynamically; a failure only disables post-processing and reflections. |
 | `assets/board-slate.webp` | Board surface texture. |
 | `assets/backdrop.webp` | Page background haze. |
 | `sfx/*.opus`, `sfx/manifest.txt` | 18 one-shot clips; `manifest.txt` is canonical, `manifest.json` drives regeneration, `manifest.md` is the readable mirror. |
 | `server.js` | Static dev host. Serves the game root, refuses `tests/`, `tools/`, `node_modules/` and dotfiles. |
 | `tests/rules.test.mjs` | `npm test` — rules contract unit tests. |
+| `tests/gfx.test.mjs` | `npm test` — graphics quality model unit tests. |
 | `tests/e2e.mjs` | `npm run test:e2e` — Playwright playthrough of the real UI at four viewports. |
 | `coverart.png`, `icon.png`, `favicon.svg`, `starhermit.txt`, `LICENSE.md` | Platform manifest and artwork. |
 
@@ -157,6 +160,8 @@ seeded-layout hook that already exists in the rules.
 | `R` | Restart the round | Fresh board, reset HUD, restart sweep |
 | On-screen `←` `↑` `↓` `→` buttons (tap or click) | Step the void | UI tap layered under the move/refusal cue |
 | On-screen `↻` button | Restart the round | Restart sweep |
+| On-screen `⚙` button | Open the Settings dialog | UI tap; focus moves into the dialog |
+| `Esc` (dialog open) | Close the Settings dialog | Focus returns to `⚙` |
 
 - Modifier chords are ignored: `game.js` returns early when `ctrlKey`, `metaKey` or `altKey` is held, so
   browser shortcuts still work.
@@ -168,6 +173,8 @@ seeded-layout hook that already exists in the rules.
   no debounce is needed; a double-tap is simply two steps, the second of which is usually refused.
 - Every input produces a sound *and* a visible change (a move, or a HUD/board state that provably did not
   change plus a distinct refusal cue).
+- While the Settings dialog is open it owns the keyboard: arrows and WASD drive its controls, never the
+  void, `Tab` cycles inside it and `Esc` closes it; a click on the dimmed backdrop also closes it.
 - Buttons are 56×44 CSS px (50×36 under 520 px of height), with a visible `:focus-visible` outline in
   `#6ea3ff` and a hover brightness lift.
 
@@ -175,7 +182,8 @@ seeded-layout hook that already exists in the rules.
 
 ## 7. Screens and UI flow
 
-There is one screen. The state machine is `loading → playing ⇄ won`, with `won → playing` on restart:
+There is one screen plus a Settings dialog. The state machine is `loading → playing ⇄ won`, with
+`won → playing` on restart; the dialog can open over either state and pauses nothing (there is no timer):
 
 - **loading** — HTML paints immediately with the header, HUD at `0` / `0 / 12`, and controls; the canvas
   fills in once the module graph resolves. If WebGL is unavailable, `game.js` replaces the canvas with a
@@ -184,13 +192,16 @@ There is one screen. The state machine is `loading → playing ⇄ won`, with `w
 - **won** — `#win-banner` ("Feast complete!") appears centred over the board with `role="status"`, all
   further steps are refused, and restart is the only meaningful action. The banner is `pointer-events: none`
   so it can never swallow a click.
+- **settings** — `#settings-panel` (`role="dialog"`, `aria-modal`), opened by the `⚙` button at the end of the
+  control bar. It holds the **Graphics** section (§8). The card scrolls inside itself, so it fits portrait and
+  landscape phones without cutting anything off.
 
 Layout is a single vertical flex column: header (title, subtitle, rule line) → `#game-wrap` → HUD row →
-control bar. `#game-wrap` is the only flexible row (`flex: 1 1 auto`, `min-height: 140px`), so the HUD and
+control bar (four arrows, restart, settings). `#game-wrap` is the only flexible row (`flex: 1 1 auto`, `min-height: 140px`), so the HUD and
 the controls can never be pushed below the fold; the canvas takes what is left, clamped to an aspect ratio
 between 1.0 and 1.6, and the camera refits. Under 520 px of viewport height the subtitle is dropped and the
 title, rule line, HUD and buttons all step down a size. Nothing on this page may ever be cut off: the
-title, the rule line, both HUD cells, all five buttons, the whole slab and the void at any cell must sit
+title, the rule line, both HUD cells, all six buttons, the whole slab and the void at any cell must sit
 inside the viewport, and the document must not scroll in either axis — `tests/e2e.mjs` asserts exactly this
 after every single move at four viewports.
 
@@ -205,7 +216,7 @@ after every single move at four viewports.
 | Page ground | `#0b0d12` |
 | Canvas/scene clear | `#141a26` |
 | Board slate tint | `#3a5f8a` (replaced by `assets/board-slate.webp` when it loads) |
-| Morsel | `#ff8c3a`, flat-shaded, emissive `#ff8c3a` at 0.85 when next |
+| Morsel | `#ff8c3a`, flat-shaded, emissive `#ff8c3a` at 0.85 when next (1.35, pulsing, with bloom on) |
 | The void | `#f6e7b2` with `#caa64d` emissive |
 | Body text | `#e8ecf4`; secondary `#9aa7bd`; rule line `#b9c6dc` |
 | Controls | `#233047`; focus ring `#6ea3ff` |
@@ -218,15 +229,44 @@ so twelve identical objects still read individually against the slab.
 fill 92 % of the tighter viewport axis. The hero of the screen is the slab; the void is the only bright
 object on it, and the single glowing morsel is the only competing highlight.
 
-**Lighting.** Ambient white at 0.7 plus one directional key at 1.6 from `(-4, 10, 8)` — enough contrast for
-facets, never enough to blow out the pale void.
+**Lighting.** ACES filmic tone mapping into sRGB output. A cool-sky / warm-table hemisphere fill, a low flat
+ambient and one warm directional key from `(-4, 10, 8)` — enough contrast for facets, never enough to blow out
+the pale void. The key's orthographic shadow box is fitted in light space to every playfield fit point (slab
+and the void at any cell), so the whole shadow map lands on the board.
+
+**Graphics.** Every effect is additive over the original look; the Low preset renders the original flat slab
+with no post chain at 1× pixel ratio. Optional effects: PCF soft shadows from the key (512²–2048²);
+image-based reflections from a PMREM-filtered `RoomEnvironment` on physical materials (clearcoated morsels,
+plates and void); a "detailed" table (a thick slate slab, a walnut table top with procedural grain, and
+lathed ceramic plates under the twelve courses that stay behind as the eaten record); a warm point light
+that pools under the next morsel; drifting warm motes (40 or 120 additive points); GTAO contact darkening;
+UnrealBloom at threshold 0.9 so only the next morsel's glow and the void's sheen halo (the next-morsel
+emissive rises to 1.35 when bloom is on); a colour grade (S-curve, +10 % saturation, cool shadows / warm
+highlights) with vignette; and FXAA/SMAA/MSAA anti-aliasing. The post chain is RenderPass → GTAO → bloom →
+OutputPass → grade → SMAA/FXAA on a half-float target (4× multisampled for MSAA) and runs only when an effect
+needs it. Settings live in the Settings dialog's **Graphics** section: Quality (Auto — chosen from the
+WebGL renderer string, software renderers get Low, discrete GPUs and Apple M get High, others Balanced,
+touch devices capped at Balanced — then Low, Balanced, High, Ultra); a render scale slider (50–200 % of the
+preset's; the device pixel ratio is capped at 1 / 1.5 / 2 / 2 per preset); one select per effect — Shadows,
+Ambient occlusion, Bloom, Colour grade, Anti-aliasing, Reflections, Table detail, Floating motes — defaulting
+to "From preset (…)"; Adaptive resolution (on by default: over ~90-frame windows the scale steps down 0.1 to
+a 0.6 floor above 26 ms and back up 0.05 below 14 ms); Show frame rate (off by default; a top-left readout
+that never takes pointer events); and a summary line "GPU · cost summary · W×H px". Choosing a preset clears
+the per-effect overrides. Changes apply live and persist in `localStorage['hf.gfx.v1']`. The canvas carries
+`data-gfx-preset`, `data-gfx-post` and one `data-gfx-<effect>` attribute per effect. Canvas MSAA is fixed when
+the context is created, so a boot with a non-MSAA choice renders a live switch to MSAA through the
+multisampled post target, and a live switch to "Off" from a MSAA boot keeps the canvas's own smoothing until
+the next load. If the add-ons fail to load or the chain throws, the board renders directly and the panel says
+post-processing is unavailable.
 
 **Typography.** System UI stack throughout. 28 px semibold title, 13 px subtitle and rule line, 15 px HUD
 labels over 20 px semibold values, so the numbers win the HUD at a glance.
 
-**Motion.** Deliberately near-static: state changes are instantaneous snaps, not tweens, so the board never
-lies about where the void is. The only animation is the 220 ms win-banner pop, and it is wrapped in
-`@media (prefers-reduced-motion: no-preference)`; with reduced motion the banner simply appears.
+**Motion.** State changes are instantaneous snaps, not tweens, so the board never lies about where the void
+is. Ambient motion is decorative only: the void idles with a slow ±0.09 bob, the next morsel turns and its
+glow and light pulse, and the motes drift. All of it stops under `prefers-reduced-motion: reduce` (checked
+live). The 220 ms win-banner pop is wrapped in `@media (prefers-reduced-motion: no-preference)`; with reduced
+motion the banner simply appears.
 
 **Visual assets the design calls for:** a slate board surface, a dark atmospheric page backdrop, and cover
 art showing the void over a laid table. All three ship (§15).
@@ -271,7 +311,9 @@ Nine locales ship: **en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it
 
 - Strings live in one table in `js/i18n.js`. Markup carries `data-i18n` (text content) and
   `data-i18n-aria` (`aria-label`); `apply()` fills both at `DOMContentLoaded`, and `document.documentElement.lang`
-  is set to the resolved tag.
+  is set to the resolved tag. The Settings dialog's strings (Graphics labels, tier names, "Auto (detected: …)",
+  "From preset (…)", the post-processing note and the cost-summary words) are in all nine locales; `game.js`
+  reads them through `__hf_i18n.t` when it builds the Graphics controls. GPU names and AA acronyms stay as-is.
 - Selection order: `?lang=` query parameter → `localStorage['hf.lang']` → `navigator.languages` in order,
   matching the exact tag first, then the base language via a fallback map (`es → es-419`, `fr → fr-FR`,
   `pt → pt-BR`, `en → en-US`, `de → de-DE`, `it → it-IT`) → `en-US`. Storage access is wrapped in try/catch
@@ -287,9 +329,9 @@ Nine locales ship: **en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it
 
 ## 11. Accessibility
 
-- **Keyboard-only path is complete**: arrows/WASD play, `R` restarts, Tab reaches all five buttons in DOM
-  order with a 2 px `#6ea3ff` focus ring at 1 px offset. There are no modals, so there is no focus trap and
-  no focus restoration problem.
+- **Keyboard-only path is complete**: arrows/WASD play, `R` restarts, Tab reaches all six buttons in DOM
+  order with a 2 px `#6ea3ff` focus ring at 1 px offset. The Settings dialog is the only modal: opening it
+  focuses the Quality select, Tab is trapped inside it, `Esc` closes it and focus returns to the opener.
 - **Announcements**: the HUD row is `aria-live="polite"`, so score and progress are read after each move;
   the win banner is `role="status"`. The WebGL-unavailable message is `role="alert"`.
 - **Labels**: the canvas, each direction button, the restart button and the control bar all carry
@@ -297,8 +339,8 @@ Nine locales ship: **en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it
 - **Contrast**: body text `#e8ecf4` and HUD values `#ffffff` on `#0b0d12` far exceed 7:1; the `#b9c6dc` rule
   line and `#9aa7bd` subtitle exceed 7:1 and 4.5:1 respectively; the `#f6e7b2` banner text sits on an 82 %
   opaque `#0b0d12` plate rather than on the scene.
-- **Reduced motion**: the only animation on the page is guarded by `prefers-reduced-motion`. Game state
-  itself never animates, so nothing is lost.
+- **Reduced motion**: the banner pop and all ambient scene motion (void bob, next-morsel spin/pulse, motes)
+  are guarded by `prefers-reduced-motion`. Game state itself never animates, so nothing is lost.
 - **Target sizes**: 56×44 CSS px, dropping to 50×36 only below 520 px of viewport height, laid out in one
   row with no overlap.
 - **No colour-only information**: the next morsel is marked by an 18 % scale increase as well as by glow,
@@ -352,8 +394,11 @@ input log — the pieces a validated leaderboard submission would need.
 - **Persistence.** The platform save document (`localStorage['hf.save.v1']`, cloud-mirrored when a launch
   token is present; see §12) holds the best line, win/clean-win counts and the mid-round board, so a reload
   resumes an unfinished round. The `hf.lang` locale preference stays an independent localStorage read.
-- **Rendering budget.** One `requestAnimationFrame` render loop; ~14 meshes, 2 lights, no post-processing,
-  no shadow maps; device pixel ratio capped at 2. Camera refitting runs only on resize, driven by a
+- **Rendering budget.** One `requestAnimationFrame` render loop. At Low: ~14 meshes, 3 lights, no
+  post-processing, no shadow maps, pixel ratio capped at 1. Higher presets add ~20 detail meshes, one point
+  light, up to 120 points, a shadow map and the post chain (§8); the pixel ratio is
+  `min(dpr, preset cap) × preset scale × render scale × adaptive scale`, and the chain is rebuilt only when
+  its key (effects, size, ratio) changes. Camera refitting runs only on resize, driven by a
   `ResizeObserver` on `#game-wrap` plus the `resize` event, and converges in at most 12 iterations.
   Textures load asynchronously and only swap the board material in on success.
 - **Serving.** `server.js` resolves paths under the game root, rejects traversal and dotfiles, and returns
@@ -367,7 +412,9 @@ input log — the pieces a validated leaderboard submission would need.
 
 ## 14. Testing and acceptance criteria
 
-**`npm test`** (`node --test tests/*.test.mjs`, zero dependencies) — 8 tests over `rules.js` (initial board
+**`npm test`** (`node --test tests/*.test.mjs`, zero dependencies) — 8 tests over `js/gfx.js` (GPU-string
+detection, the touch cap, auto vs explicit presets, overrides and invalid values, render-scale clamping,
+adaptive/fps defaults, preset choice clearing overrides, and the cost summary), 8 tests over `rules.js` (initial board
 shape, off-board illegality, order-gated edibility, the cost of an illegal action, non-mutation of the input
 state, the full 12-morsel scoring ladder to 450, scoring nothing for re-entering an eaten cell, and the
 sticky terminal state) plus 7 over `js/platform.js` against a stub window/document: the stored-zip helper,
@@ -381,15 +428,18 @@ short desktop 1280×600. Each pass loads the page, asserts the title, canvas and
 visible, rejects an out-of-bounds move, solves the board by **clicking the on-screen buttons** with keyboard
 arrows mixed in every fourth move, verifies the HUD after every move against the scoring formula, asserts the
 win banner appears, checks post-win inertness, restarts by button and by `R` (asserting the banner clears),
-and samples the canvas for non-blank pixels. Any `pageerror` or `console.error` (other than known GL driver
-noise) fails the pass.
+then opens Settings through the `⚙` button and drives the Graphics section — Auto is Low on the software GPU,
+arrow keys go to the dialog not the void, Ultra, Low and High apply (`data-gfx-preset` / `data-gfx-post`), a
+Bloom override to Off applies and shows in the summary, the dialog fits the viewport, `Esc` closes it, the
+choices survive a reload, and choosing a preset clears the override — and samples the canvas for non-blank
+pixels. Any `pageerror`, `console.error` or `console.warn` (other than known GL driver noise) fails the pass.
 
 Acceptance bar, as checkable statements — all currently true:
 
 - Every implemented feature is reachable in a browser with a mouse, a finger, or a keyboard alone.
-- No console errors or warnings at any of the four viewports.
+- No console errors or warnings at any of the four viewports, in any graphics preset.
 - After every move at every viewport, the whole slab and the void project inside the canvas, and the title,
-  rule line, HUD and all five buttons lie inside the viewport with no page scroll in either axis.
+  rule line, HUD and all six buttons lie inside the viewport with no page scroll in either axis.
 - A first-time player is told the rule before their first input, and the next legal target is always marked
   on the board.
 - Every input is acknowledged visually and audibly, including refused ones.
@@ -413,6 +463,9 @@ Acceptance bar, as checkable statements — all currently true:
 | `sfx/feast-complete-a..b.opus` | `win` variants | MOSS-SFX | Shipped |
 | `sfx/ui-tap-a..b.opus` | `ui-click` variants | MOSS-SFX | Shipped |
 | `js/three.module.min.js`, `js/three.core.min.js` | three.js r178 runtime | Vendored upstream | Shipped |
+| `js/addons/**` | three.js r178 post-processing passes, shaders, `SimplexNoise`, `RoomEnvironment` | Vendored upstream `examples/jsm` (MIT, `js/addons/LICENSE`) | Shipped |
+
+The walnut table grain, the mote sprite and the plate profile are generated in code, not shipped as files.
 
 No 3D model assets and no character animations: the two shapes in the scene are procedural primitives, and
 there is no humanoid to animate.
@@ -430,8 +483,8 @@ there is no humanoid to animate.
   cell shows the refusal count of the recorded best run (`450 · 0R · 12T`), but the current run's own
   refusal count is not displayed, so the "clean run" goal during play is only in the player's head.
 - **No gamepad support.** Keyboard, pointer and touch only.
-- **No audio settings in the UI.** `setMuted` / `setVolume` exist on `window.__hf_sfx` but nothing on screen
-  calls them; the player's only recourse is the browser tab mute.
+- **No audio settings in the UI.** The Settings dialog has only a Graphics section; `setMuted` / `setVolume`
+  exist on `window.__hf_sfx` but nothing on screen calls them; the player's only recourse is the browser tab mute.
 - **The canvas is not clickable.** Tapping a morsel does nothing; all input goes through the buttons and keys.
 - **`seed` is stored but unused.** Every board is the authored one.
 

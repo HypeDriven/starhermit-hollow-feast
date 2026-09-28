@@ -8,8 +8,9 @@
  * then restart via the on-screen button and the R key. A Node-level rules
  * prelude checks that the terminal win state survives post-win moves.
  *
- * This game has no menu, pause, or settings screens — play starts immediately
- * on load, so those flows are not applicable here. Everything is local; no
+ * Play starts immediately on load (no menu or pause screen). The Settings
+ * dialog (Graphics section) is driven through its visible controls: presets,
+ * one per-effect override, persistence across a reload, and dialog fit. Everything is local; no
  * StarHermit backend is required.
  *
  * Every move also checks framing: the whole board and the void project inside
@@ -86,7 +87,7 @@ async function runPass(name, viewport, hasTouch, browser) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => {
-    if (m.type() === 'error' && !browserNoise.test(m.text())) errors.push(`console: ${m.text()}`);
+    if ((m.type() === 'error' || m.type() === 'warning') && !browserNoise.test(m.text())) errors.push(`console ${m.type()}: ${m.text()}`);
   });
 
   const step = async (label, fn) => {
@@ -112,7 +113,7 @@ async function runPass(name, viewport, hasTouch, browser) {
       const d = window.__hf_debug && window.__hf_debug.frameBounds();
       const vw = window.innerWidth, vh = window.innerHeight;
       const off = [];
-      for (const sel of ['canvas#game', '#score', '#eaten', 'button[data-dir]', '#restart', 'h1']) {
+      for (const sel of ['canvas#game', '#score', '#eaten', 'button[data-dir]', '#restart', '#settings-btn', 'h1']) {
         document.querySelectorAll(sel).forEach((el) => {
           const b = el.getBoundingClientRect();
           if (b.width === 0 || b.height === 0 || b.left < -0.5 || b.top < -0.5 || b.right > vw + 0.5 || b.bottom > vh + 0.5) {
@@ -189,6 +190,59 @@ async function runPass(name, viewport, hasTouch, browser) {
       await expectHUD('10', '1 / 12');
       await page.keyboard.press('r');
       await expectHUD('0', '0 / 12');
+    });
+
+    await step('settings → graphics: presets, override, persistence', async () => {
+      const attr = (name) => page.getAttribute('canvas#game', name);
+      const expectAttr = async (name, value) => {
+        await page.waitForFunction(([n, v]) => document.getElementById('game').getAttribute(n) === v, [name, value], { timeout: 5000 });
+      };
+      // Headless Chrome uses a software GPU, so Auto resolves to Low.
+      if ((await attr('data-gfx-preset')) !== 'low') throw new Error(`auto preset should be low on a software GPU, got ${await attr('data-gfx-preset')}`);
+      await page.click('#settings-btn');
+      if (!(await page.locator('#settings-panel').isVisible())) throw new Error('settings dialog did not open');
+      const autoLabel = await page.textContent('#gfx-preset option[value="auto"]');
+      if (!/Low/.test(autoLabel)) throw new Error(`auto option should name the detected tier: ${autoLabel}`);
+      // Arrow keys belong to the dialog while it is open, not to the void.
+      await page.keyboard.press('ArrowLeft');
+      await expectHUD('0', '0 / 12');
+      await page.selectOption('#gfx-preset', 'ultra');
+      await expectAttr('data-gfx-preset', 'ultra');
+      await expectAttr('data-gfx-post', 'on');
+      await page.waitForTimeout(400);
+      await page.selectOption('#gfx-preset', 'low');
+      await expectAttr('data-gfx-preset', 'low');
+      await expectAttr('data-gfx-post', 'off');
+      await page.selectOption('#gfx-preset', 'high');
+      await expectAttr('data-gfx-preset', 'high');
+      await expectAttr('data-gfx-bloom', 'on');
+      if (!/From preset \(On\)/.test(await page.textContent('#gfx-bloom option[value="preset"]'))) throw new Error('bloom select should offer "From preset (On)"');
+      await page.selectOption('#gfx-bloom', 'off');
+      await expectAttr('data-gfx-bloom', 'off');
+      const summary = await page.textContent('#gfx-summary');
+      if (!/shadows/.test(summary) || /bloom/.test(summary) || !/\d+×\d+ px/.test(summary)) throw new Error(`summary does not reflect settings: ${summary}`);
+      // The dialog fits the viewport (it scrolls inside itself if needed).
+      const fit = await page.evaluate(() => {
+        const b = document.querySelector('#settings-panel .panel-card').getBoundingClientRect();
+        return b.left >= -0.5 && b.top >= -0.5 && b.right <= innerWidth + 0.5 && b.bottom <= innerHeight + 0.5;
+      });
+      if (!fit) throw new Error('settings dialog is cut off by the viewport');
+      await page.screenshot({ path: SHOT('settings', name) });
+      await page.keyboard.press('Escape');
+      if (await page.locator('#settings-panel').isVisible()) throw new Error('Escape did not close the dialog');
+      await page.reload({ waitUntil: 'networkidle' });
+      await expectAttr('data-gfx-preset', 'high');
+      await expectAttr('data-gfx-bloom', 'off');
+      await page.click('#settings-btn');
+      if ((await page.inputValue('#gfx-preset')) !== 'high' || (await page.inputValue('#gfx-bloom')) !== 'off') throw new Error('graphics settings did not survive the reload');
+      // Choosing a preset clears the override.
+      await page.selectOption('#gfx-preset', 'balanced');
+      if ((await page.inputValue('#gfx-bloom')) !== 'preset') throw new Error('choosing a preset should clear overrides');
+      await expectAttr('data-gfx-bloom', 'on');
+      await page.click('#settings-close');
+      await page.waitForTimeout(300);
+      await expectNothingCutOff();
+      await page.screenshot({ path: SHOT('balanced', name) });
     });
 
     await step('canvas is rendering (non-blank pixels)', async () => {
