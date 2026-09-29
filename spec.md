@@ -496,3 +496,7 @@ there is no humanoid to animate.
   single score number.
 - A StarHermit leaderboard for fastest clean solve, validated from the deterministic input log.
 - In-UI audio and locale controls bound to the existing `__hf_sfx` and `__hf_i18n` APIs.
+
+## Browser interference
+
+`browser-guard.js` (loaded from `index.html`) suppresses browser UI that gets in the way of play: the right-click context menu, the iOS long-press callout, copy / cut / paste, and page text selection. Text fields (inputs, textareas, selects, contenteditable) keep normal selection, context menu and clipboard behaviour.
