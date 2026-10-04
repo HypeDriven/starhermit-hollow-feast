@@ -23,8 +23,11 @@
       return v && typeof v === 'object' ? v : {};
     } catch (_) { return {}; }
   }
-  function storeGfx(v) {
+  function storeGfx(v, fromPlatform) {
     try { if (window.localStorage) window.localStorage.setItem(GFX_KEY, JSON.stringify(v)); } catch (_) { /* private mode */ }
+    // Mirror the preference to the StarHermit per-player settings KV (no-op without a token).
+    const p = window.__hf_platform;
+    if (p && !fromPlatform) p.patchSettings({ gfx: v });
   }
   let gfxSaved = loadGfx();
   const bootGfx = gfxApi ? gfxApi.resolve(gfxSaved, 'low') : null;
@@ -897,6 +900,50 @@
   if (closeBtn) closeBtn.addEventListener('click', closePanel);
   if (panel) panel.addEventListener('click', function (e) { if (e.target === panel) closePanel(); });
 
+  // --- StarHermit account: sign-in / invite in the Settings dialog ----------
+  const accountSection = document.getElementById('account-section');
+  const signInBtn = document.getElementById('signin-btn');
+  const inviteBtn = document.getElementById('invite-btn');
+  const toastEl = document.getElementById('sh-toast');
+  let toastTimer = 0;
+  function toast(msg) {
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.hidden = false;
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(function () { toastEl.hidden = true; }, 3500);
+  }
+  function refreshAccount() {
+    if (!platform || !accountSection) return;
+    const canIn = platform.canSignIn();
+    const isIn = !!platform.launch();
+    signInBtn.hidden = !canIn;
+    inviteBtn.hidden = !isIn;
+    accountSection.hidden = !canIn && !isIn;
+  }
+  if (platform && signInBtn && inviteBtn) {
+    signInBtn.addEventListener('click', function () { platform.signIn(); });
+    inviteBtn.addEventListener('click', function () {
+      const link = platform.inviteLink();
+      if (!link) return;
+      const done = function (ok) { toast(ok ? tr('sh.copied') : tr('sh.copyFailed').replace('{link}', link)); };
+      try { navigator.clipboard.writeText(link).then(function () { done(true); }, function () { done(false); }); } catch (_) { done(false); }
+    });
+    platform.onAuth(function (isIn) {
+      refreshAccount();
+      if (!isIn) toast(tr('sh.signedOut'));
+    });
+    refreshAccount();
+    // Settings KV: the platform preference wins over the local one when signed in.
+    platform.getSettings().then(function (remote) {
+      if (!remote || !remote.gfx || typeof remote.gfx !== 'object') return;
+      gfxSaved = remote.gfx;
+      storeGfx(gfxSaved, true);
+      applyGraphics();
+      if (typeof refreshPanel === 'function') refreshPanel();
+    });
+  }
+
   buildPanel();
   applyGraphics();
   refreshPanel();
@@ -945,21 +992,40 @@
     updateHUD();
   }
 
-  const KEY_DIRS = {
-    ArrowLeft: 'left', a: 'left',
-    ArrowRight: 'right', d: 'right',
-    ArrowUp: 'up', w: 'up',
-    ArrowDown: 'down', s: 'down',
+  // Keyboard bindings by KeyboardEvent.code; defaults mirror the control.*
+  // lines in starhermit.txt, and StarHermit.loadBindings applies the player's
+  // platform overrides.
+  const DEFAULT_BINDINGS = {
+    left: ['ArrowLeft', 'KeyA'], right: ['ArrowRight', 'KeyD'],
+    up: ['ArrowUp', 'KeyW'], down: ['ArrowDown', 'KeyS'], restart: ['KeyR'],
   };
+  let bindings = JSON.parse(JSON.stringify(DEFAULT_BINDINGS));
+  function actionFor(code) {
+    for (const a in bindings) if (bindings[a].indexOf(code) >= 0) return a;
+    return null;
+  }
+  // The how-to line names the default keys in prose; when the player has
+  // rebound any, append the effective keys (glyphs, so no locale changes).
+  function showBindings() {
+    const howto = document.querySelector('.howto');
+    if (!howto || JSON.stringify(bindings) === JSON.stringify(DEFAULT_BINDINGS)) return;
+    const name = function (c) { return { ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' }[c] || c.replace(/^Key/, '').replace(/^Digit/, ''); };
+    const keys = function (a) { return bindings[a].map(name).join('/'); };
+    howto.textContent = tr('howto') + ' (← ' + keys('left') + ' · → ' + keys('right') + ' · ↑ ' + keys('up') +
+      ' · ↓ ' + keys('down') + ' · ↻ ' + keys('restart') + ')';
+  }
+  if (platform) platform.loadBindings(DEFAULT_BINDINGS).then(function (b) { bindings = b; showBindings(); });
+
   window.addEventListener('keydown', function (e) {
     if (panelOpen()) { panelKey(e); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.key === 'r' || e.key === 'R') {
+    const action = actionFor(e.code);
+    if (action === 'restart') {
       e.preventDefault();
       restart();
       return;
     }
-    const dir = KEY_DIRS[e.key];
+    const dir = action;
     if (dir) {
       e.preventDefault();
       act(dir);

@@ -26,6 +26,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { chromium } from 'playwright-core';
+import { launchToken, stubStarHermit } from './starhermit-e2e.mjs';
 
 // --- Rules unit checks: terminal state must stay terminal ---
 {
@@ -83,6 +84,7 @@ const SHOT = (stage, pass) => `/tmp/hollow-feast-e2e-${stage}-${pass}.png`;
 
 async function runPass(name, viewport, hasTouch, browser) {
   const context = await browser.newContext({ viewport, hasTouch });
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
@@ -261,6 +263,30 @@ async function runPass(name, viewport, hasTouch, browser) {
         });
       }));
       if (nonBlank < 2) throw new Error('canvas appears blank');
+    });
+
+    await step('StarHermit: standalone silent; launch token -> nickname, invite toast from Settings', async () => {
+      const hits = [];
+      page.on('request', (r) => { if (/\/api\/v1\//.test(r.url())) hits.push(r.url()); });
+      await page.goto(BASE, { waitUntil: 'networkidle' });
+      await page.click('#settings-btn');
+      if (await page.locator('#account-section').isVisible()) throw new Error('account section shown standalone');
+      await page.click('#settings-close');
+      if (hits.length) throw new Error('standalone fetched ' + hits.join(', '));
+      const calls = await stubStarHermit(page);
+      await page.goto(BASE + '/index.html#game_token=' + launchToken(), { waitUntil: 'load' });
+      await page.waitForFunction(() => /Al/.test(document.getElementById('player').textContent));
+      if (page.url().includes('game_token')) throw new Error('token left in URL');
+      await page.click('#settings-btn');
+      await page.locator('#invite-btn').scrollIntoViewIfNeeded();
+      await page.click('#invite-btn');
+      await page.locator('#sh-toast').waitFor({ state: 'visible' });
+      const box = await page.locator('#sh-toast').boundingBox();
+      if (box.x < 0 || box.x + box.width > page.viewportSize().width + 1) throw new Error('toast cut off');
+      if (!calls.some((c) => c.includes('/cloud-saves/game%3Agid-1'))) throw new Error('no cloud-save load: ' + calls.join(', '));
+      await page.screenshot({ path: SHOT('signed-in', name) });
+      await page.click('#settings-close');
+      await page.unroute(/\/api\/v1\//);
     });
   } finally {
     await context.close();

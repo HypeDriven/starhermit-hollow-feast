@@ -52,6 +52,13 @@
   .gfx-scale output { flex: none; width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; }
   .gfx-row input[type="checkbox"] { width: 20px; height: 20px; accent-color: #6ea3ff; }
   .panel-card select:focus-visible, .panel-card input:focus-visible { outline: 2px solid #6ea3ff; outline-offset: 1px; }
+  /* StarHermit account: sign-in / invite buttons, toast, HUD avatar */
+  .acct-btn { display: block; width: 100%; min-height: 40px; margin: 6px 0 0; border-radius: 8px; border: 1px solid #2c3a55; background: #1b2438; color: #e8ecf4; font: inherit; cursor: pointer; }
+  .acct-btn[hidden] { display: none; }
+  .acct-btn:focus-visible { outline: 2px solid #6ea3ff; outline-offset: 1px; }
+  #sh-toast { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 30; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 10px 16px; border-radius: 10px; background: #121826; border: 1px solid #2c3a55; color: #e8ecf4; text-align: center; overflow-wrap: anywhere; }
+  #sh-toast[hidden] { display: none; }
+  .hf-avatar { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; vertical-align: -2px; margin-right: 4px; }
   #gfx-summary { margin: 10px 0 0; font-size: 12px; line-height: 1.4; color: #9aa7bd; overflow-wrap: anywhere; }
   #gfx-post-note { margin: 6px 0 0; font-size: 12px; color: #e8cf7f; }
   #gfx-post-note[hidden] { display: none; }
@@ -96,6 +103,7 @@
   <button type="button" class="ctl" id="restart" data-i18n-aria="restart" aria-label="Restart round">&#8635;</button>
   <button type="button" class="ctl" id="settings-btn" data-action="settings" aria-haspopup="dialog" aria-controls="settings-panel" data-i18n-aria="settings" aria-label="Settings">&#9881;&#xFE0E;</button>
 </nav>
+<div id="sh-toast" role="status" hidden></div>
 <div id="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
   <div class="panel-card">
     <div class="panel-head">
@@ -108,12 +116,18 @@
       <p id="gfx-summary" aria-live="polite"></p>
       <p id="gfx-post-note" data-i18n="gfxPostFailed" hidden>Post-processing is unavailable on this device, so the board renders without it.</p>
     </section>
+    <section id="account-section" aria-labelledby="account-heading" hidden>
+      <h3 id="account-heading" data-i18n="sh.account">Account</h3>
+      <button type="button" class="acct-btn" id="signin-btn" data-i18n="sh.signIn" hidden>Sign in with StarHermit</button>
+      <button type="button" class="acct-btn" id="invite-btn" data-i18n="sh.invite" hidden>Invite a friend</button>
+    </section>
   </div>
 </div>
 <script src="./js/i18n.js"></script>
 <script src="./rules.js"></script>
 <script src="./js/sfx.js"></script>
-<script src="./js/platform.js?v=feast-2"></script>
+<script src="./js/starhermit-sdk.js"></script>
+<script src="./js/platform.js?v=sh-1"></script>
 <script src="./js/gfx.js?v=feast-3"></script>
 <script type="module">
   import * as THREE from 'three';

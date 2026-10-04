@@ -21,9 +21,11 @@ A hungry pale void hovers over a slate banquet table and must swallow twelve glo
 
 | Path | Responsibility |
 |---|---|
-| `index.html` | Entry point: layout, palette, header, canvas box, HUD, control bar, win banner, Settings dialog, import map. Loads scripts in order i18n → rules → sfx → platform → gfx → three.js → post add-ons (optional) → game. |
+| `index.html` | Entry point: layout, palette, header, canvas box, HUD, control bar, win banner, Settings dialog (Graphics + Account), StarHermit toast, import map. Loads scripts in order i18n → rules → sfx → starhermit-sdk → platform → gfx → three.js → post add-ons (optional) → game. |
 | `rules.js` | Pure rules engine. `initialState`, `isLegal`, `applyAction`. No DOM, no three.js. Exported to `window.__hf_rules` and to CommonJS for tests. |
 | `game.js` | Presentation and input: scene, camera fit, mesh sync, HUD, keyboard/pointer handling, audio event dispatch, `window.__hf_debug` framing hook. |
+| `js/starhermit-sdk.js` | Shared StarHermit client (`window.StarHermit`), an unmodified copy of `tools/starhermit-sdk.js`. |
+| `js/platform.js` | `window.__hf_platform`: StarHermit adapter over the SDK — save document (localStorage + cloud slot), HUD player/sync cells, settings KV, key bindings, invite link, sign-in. |
 | `js/i18n.js` | Nine-locale string table, locale selection, `data-i18n` / `data-i18n-aria` application. |
 | `js/sfx.js` | Web Audio engine: event → clip round-robin with a procedural synth fallback. |
 | `js/three.module.min.js`, `js/three.core.min.js` | Vendored three.js r178 (import-mapped as `three`). |
@@ -35,6 +37,7 @@ A hungry pale void hovers over a slate banquet table and must swallow twelve glo
 | `server.js` | Static dev host. Serves the game root, refuses `tests/`, `tools/`, `node_modules/` and dotfiles. |
 | `tests/rules.test.mjs` | `npm test` — rules contract unit tests. |
 | `tests/gfx.test.mjs` | `npm test` — graphics quality model unit tests. |
+| `tests/platform.test.mjs` | `npm test` — `js/platform.js` over the SDK with a stubbed fetch and launch fragment. |
 | `tests/e2e.mjs` | `npm run test:e2e` — Playwright playthrough of the real UI at four viewports. |
 | `coverart.png`, `icon.png`, `favicon.svg`, `starhermit.txt`, `LICENSE.md` | Platform manifest and artwork. |
 
@@ -350,34 +353,39 @@ Nine locales ship: **en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it
 
 ## 12. StarHermit integration
 
-`starhermit.txt` declares `name=Hollow Feast`, `launch=index.html`, an `owner` id, and `cover=coverart.png`,
-which is what the platform needs to list and launch the game (https://wiki.starhermit.com/).
+`starhermit.txt` declares `name=Hollow Feast`, `launch=index.html`, an `owner` id, `cover=coverart.png`
+(https://wiki.starhermit.com/), and the keyboard actions `control.left=ArrowLeft+KeyA`,
+`control.right=ArrowRight+KeyD`, `control.up=ArrowUp+KeyW`, `control.down=ArrowDown+KeyS`,
+`control.restart=KeyR`.
 
-Hosted launches carry a StarHermit launch token in the URL fragment (`#game_token=<jwt>`), handled by
-`js/platform.js` (loaded before `game.js`, null-checked everywhere): the token is read once and stripped
-from the URL, the `sub`/`game_scope` claims are decoded (slug never hard-coded), every `/api` call sends
-`Authorization: Bearer`, and a fresh token is re-minted every 45 minutes via
-`POST /api/v1/games/{slug}/launch-token` (60 s retry on failure). The account nickname
-(`GET /api/v1/users/{sub}/profile` — never `/api/v1/me`, never usernames; `"Player " + id.slice(0,8)`
-fallback) is shown in the HUD player cell next to the sync chip.
+`js/starhermit-sdk.js` (the shared client, unmodified) loads before `js/platform.js`, which calls
+`StarHermit.init()` as it boots (before `game.js`). The SDK reads the launch token from `#game_token=` (or
+the `#access_token=` sign-in return), strips it from the URL, takes the slug from `game_scope` and renews the
+token before expiry. Signed in, the game:
 
-Progress and personal records — the best line (score, refusals, ticks), win/clean-win counts and the
-mid-round board — live in one JSON save document. `localStorage['hf.save.v1']` is the offline cache; when a
-token is present the document is mirrored to the platform cloud-save slot (`GET`/`PUT
-/api/v1/me/cloud-saves/{slug}`, zip+base64 via the stored-zip helper in `js/platform.js`), with a 2 s
-debounce, a `pagehide`/`visibilitychange` flush, and remote-preferred load. The HUD sync cell shows
-local/loading/saving/synced/offline/error. With no token (local dev, or a player who refuses auth) the
-adapter is fully inert — zero network calls — and play is identical to a local session; query-param token
-fallbacks exist for local dev only and are refused on `*.starhermit.com` hosts.
+- shows the profile nickname (never `/api/v1/me`, never usernames; `"Player " + id` fallback) and avatar
+  in the HUD player cell next to the sync chip;
+- keeps progress and personal records — the best line (score, refusals, ticks), win/clean-win counts and
+  the mid-round board — in one JSON save document: `localStorage['hf.save.v1']` is the offline cache, the
+  cloud-save slot `game:<slug>` is loaded remote-preferred at boot and written with a 2 s debounce and a
+  keepalive flush on `pagehide`/hidden; the sync cell shows local/loading/saving/synced/offline/error;
+- mirrors the Graphics settings (`hf.gfx.v1`) to the per-player settings KV on every change and applies the
+  platform value over the local one at boot;
+- routes `keydown` by `event.code` through `StarHermit.loadBindings`; when the player has rebound keys, the
+  how-to line appends the effective keys;
+- offers **Invite a friend** in Settings → Account, copying `StarHermit.inviteLink()` with a toast.
 
-There is still no presence, no achievement delivery and no leaderboard submission: every result is local
-and non-authoritative, so a global board would remain unverifiable without a replay validator.
-`starhermit.txt` deliberately declares no `server=` key: `server.js` is a static
-development file host, not a game script, and it is never uploaded as authoritative logic.
+Served from `<id>.starhermit.com` without a token, Settings → Account offers **Sign in with StarHermit**.
+If renewal is refused, a toast says the player is signed out and play continues locally. Account strings are
+localized in all nine locales (`sh.*` keys in `js/i18n.js`). With no token (local dev, or a player who
+refuses auth) the adapter is fully inert — zero network calls — and play is identical to a local session.
 
-The rules engine is already shaped for the one platform feature still missing: pure functions, a
-serialisable state, a monotonic `tick`, an explicit terminal flag, and a fully deterministic replay from an
-input log — the pieces a validated leaderboard submission would need.
+Not used: there is no `server=` key and no platform script (`server.js` is a static development file host),
+so sessions, matchmaking, session invites, chat, replays, platform achievements and leaderboards have nothing
+to drive them; every result is local and non-authoritative. Realtime rooms and voice are out of scope.
+
+The rules engine is already shaped for a future validated leaderboard: pure functions, a serialisable state,
+a monotonic `tick`, an explicit terminal flag, and a fully deterministic replay from an input log.
 
 ---
 
@@ -417,10 +425,10 @@ detection, the touch cap, auto vs explicit presets, overrides and invalid values
 adaptive/fps defaults, preset choice clearing overrides, and the cost summary), 8 tests over `rules.js` (initial board
 shape, off-board illegality, order-gated edibility, the cost of an illegal action, non-mutation of the input
 state, the full 12-morsel scoring ladder to 450, scoring nothing for re-entering an eaten cell, and the
-sticky terminal state) plus 7 over `js/platform.js` against a stub window/document: the stored-zip helper,
-fragment token read-and-strip, hosted-host query-token refusal, the dev query fallback, offline inertness
-(zero fetches, localStorage cache), Bearer on every hosted call with nickname resolution and the cloud-save
-PUT payload, and the `"Player "+id8` nickname fallback.
+sticky terminal state) plus 4 over `js/starhermit-sdk.js` + `js/platform.js` in a vm sandbox with a stubbed fetch: offline
+inertness (zero fetches, localStorage cache, `local` sync state), the hosted path (token read and stripped,
+nickname in the HUD cell, cloud save through `game:<slug>` with Bearer on every call, remote-preferred load on
+the next launch), the settings KV PATCH, bindings and invite link, and sign-in offered on the hosted domain.
 
 **`npm run test:e2e`** (`tests/e2e.mjs`, playwright-core + headless Chrome) — a rules prelude, then four
 passes over the real UI: desktop 1280×800, mobile 390×844 (touch), landscape phone 844×390 (touch) and a
@@ -432,7 +440,9 @@ then opens Settings through the `⚙` button and drives the Graphics section —
 arrow keys go to the dialog not the void, Ultra, Low and High apply (`data-gfx-preset` / `data-gfx-post`), a
 Bloom override to Off applies and shows in the summary, the dialog fits the viewport, `Esc` closes it, the
 choices survive a reload, and choosing a preset clears the override — and samples the canvas for non-blank
-pixels. Any `pageerror`, `console.error` or `console.warn` (other than known GL driver noise) fails the pass.
+pixels; then it checks StarHermit: standalone makes no `/api/v1` request and Settings shows no Account
+section; a `#game_token=` launch against a stubbed API shows the nickname in the HUD, strips the token, loads
+`game:<slug>`, and Settings → Invite a friend shows an on-screen toast. Any `pageerror`, `console.error` or `console.warn` (other than known GL driver noise) fails the pass.
 
 Acceptance bar, as checkable statements — all currently true:
 
