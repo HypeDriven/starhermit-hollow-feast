@@ -21,7 +21,7 @@ A hungry pale void hovers over a slate banquet table and must swallow twelve glo
 
 | Path | Responsibility |
 |---|---|
-| `index.html` | Entry point: layout, palette, header, canvas box, HUD, control bar, win banner, Settings dialog (Graphics + Account), StarHermit toast, import map. Loads scripts in order i18n → rules → sfx → starhermit-sdk → platform → gfx → three.js → post add-ons (optional) → game. |
+| `index.html` | Entry point: layout, palette, header, canvas box, HUD, control bar, win banner, Settings dialog (Graphics + Account), StarHermit toast, import map. Loads `ui-scale.js` and `browser-guard.js` in `<head>`, then scripts in order i18n → rules → sfx → starhermit-sdk → platform → gfx → three.js → post add-ons (optional) → game. |
 | `rules.js` | Pure rules engine. `initialState`, `isLegal`, `applyAction`. No DOM, no three.js. Exported to `window.__hf_rules` and to CommonJS for tests. |
 | `game.js` | Presentation and input: scene, camera fit, mesh sync, HUD, keyboard/pointer handling, audio event dispatch, `window.__hf_debug` framing hook. |
 | `js/starhermit-sdk.js` | Shared StarHermit client (`window.StarHermit`), an unmodified copy of `tools/starhermit-sdk.js`. |
@@ -207,6 +207,9 @@ title, rule line, HUD and buttons all step down a size. Nothing on this page may
 title, the rule line, both HUD cells, all six buttons, the whole slab and the void at any cell must sit
 inside the viewport, and the document must not scroll in either axis — `tests/e2e.mjs` asserts exactly this
 after every single move at four viewports.
+Above a 1600×1000 viewport `ui-scale.js` sets `--ui-scale` (`min(w/1600, h/1000)`, capped at 2.5) and `body` is
+CSS-`zoom`ed by it (its `100dvh` height and the toast's `100vw` cap are divided by it), so the page at 3840×2160
+is the ~1778×1000 layout magnified; the canvas multiplies its pixel ratio by `UIScale.value` to stay sharp.
 
 ---
 

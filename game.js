@@ -721,7 +721,9 @@
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
     if (!w || !h) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, q.dprCap);
+    // The canvas sits inside the zoomed page (ui-scale.js), so its backing store
+    // also scales by UIScale.value to stay sharp on large screens.
+    const dpr = Math.min(window.devicePixelRatio || 1, q.dprCap) * ((window.UIScale && window.UIScale.value) || 1);
     const ratio = Math.min(3, Math.max(0.5, dpr * q.scale * adaptiveScale));
     if (w !== size[0] || h !== size[1] || ratio !== pixelRatio || rescale) {
       size = [w, h];

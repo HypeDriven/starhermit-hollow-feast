@@ -9,7 +9,10 @@
 <style>
   :root { color-scheme: dark; }
   html, body { height: 100%; }
-  body { margin: 0; background-color: #0b0d12; background-image: url('./assets/backdrop.webp'); background-size: cover; background-position: center; background-repeat: no-repeat; color: #e8ecf4; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; display: flex; flex-direction: column; align-items: center; height: 100vh; height: 100dvh; }
+  body { margin: 0; background-color: #0b0d12; background-image: url('./assets/backdrop.webp'); background-size: cover; background-position: center; background-repeat: no-repeat; color: #e8ecf4; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; display: flex; flex-direction: column; align-items: center; height: calc(100vh / var(--ui-scale, 1)); height: calc(100dvh / var(--ui-scale, 1)); }
+  /* Large screens: the whole page (header, playfield box, HUD, controls, dialogs, toast) zooms by
+     --ui-scale from ui-scale.js (exactly 1 up to 1600x1000); vh/vw inside it are divided by it. */
+  body { zoom: var(--ui-scale, 1); }
   header { flex: none; padding: 12px 16px 0; text-align: center; }
   h1 { margin: 0; font-size: 28px; letter-spacing: 0.5px; color: #ffffff; }
   .subtitle { margin-top: 4px; font-size: 13px; color: #9aa7bd; }
@@ -56,7 +59,7 @@
   .acct-btn { display: block; width: 100%; min-height: 40px; margin: 6px 0 0; border-radius: 8px; border: 1px solid #2c3a55; background: #1b2438; color: #e8ecf4; font: inherit; cursor: pointer; }
   .acct-btn[hidden] { display: none; }
   .acct-btn:focus-visible { outline: 2px solid #6ea3ff; outline-offset: 1px; }
-  #sh-toast { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 30; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 10px 16px; border-radius: 10px; background: #121826; border: 1px solid #2c3a55; color: #e8ecf4; text-align: center; overflow-wrap: anywhere; }
+  #sh-toast { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 30; max-width: calc(100vw / var(--ui-scale, 1) - 32px); box-sizing: border-box; padding: 10px 16px; border-radius: 10px; background: #121826; border: 1px solid #2c3a55; color: #e8ecf4; text-align: center; overflow-wrap: anywhere; }
   #sh-toast[hidden] { display: none; }
   .hf-avatar { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; vertical-align: -2px; margin-right: 4px; }
   #gfx-summary { margin: 10px 0 0; font-size: 12px; line-height: 1.4; color: #9aa7bd; overflow-wrap: anywhere; }
@@ -76,6 +79,7 @@
     button.ctl { height: 36px; width: 50px; }
   }
 </style>
+<script src="ui-scale.js"></script>
 <script src="browser-guard.js"></script>
 </head>
 <body>
