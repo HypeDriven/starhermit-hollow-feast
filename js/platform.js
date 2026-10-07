@@ -194,6 +194,18 @@
       return signedIn() ? SH.loadBindings(defaults) : Promise.resolve(JSON.parse(JSON.stringify(defaults)));
     },
     inviteLink: function () { return signedIn() ? SH.inviteLink() : null; },
+    // Post a finished run's solve time (ms) to the fastest-clear board
+    // (score-script.js); resolves { posted, rank } — rank on that board, or null.
+    submitTime: function (ms) {
+      if (!signedIn() || typeof SH.submitScores !== 'function') return Promise.resolve({ posted: false, rank: null });
+      return SH.submitScores({ 'fastest-clear': ms }).then(function (keys) {
+        if (!keys || keys.indexOf('fastest-clear') < 0) return { posted: false, rank: null };
+        return SH.leaderboard('fastest-clear', { pageSize: 100 }).then(function (r) {
+          const me = ((r && r.items) || []).filter(function (i) { return i.userId === SH.userId; })[0];
+          return { posted: true, rank: me ? me.rank : null };
+        }, function () { return { posted: true, rank: null }; });
+      }, function () { return { posted: false, rank: null }; });
+    },
   };
 
   // The script tag sits after the HUD markup, so the elements exist already;

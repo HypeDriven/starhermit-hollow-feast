@@ -431,7 +431,7 @@
       displayBest();
       if (!window.__hf_state && state && !state.won && state.tick === 0 && records.inProgress && !records.inProgress.won) {
         const r = reviveState(records.inProgress);
-        if (r) { state = r; syncScene(); updateHUD(); }
+        if (r) { state = r; runFresh = state.tick === 0; syncScene(); updateHUD(); }
       }
     });
   }
@@ -965,17 +965,40 @@
     return 'wrong-order';
   }
 
+  // Solve timer for the StarHermit fastest-clear board: starts on the first
+  // input of a fresh board; a board resumed from a save is never posted.
+  let runStart = null;
+  let runFresh = state.tick === 0 && !state.won;
+  const lbEl = document.getElementById('win-lb');
+  function postRun(ms) {
+    if (!lbEl) return;
+    if (!platform || !platform.launch() || !platform.submitTime) { lbEl.hidden = true; return; }
+    const i18n = window.__hf_i18n;
+    const tr = function (k) { return i18n && typeof i18n.t === 'function' ? i18n.t(k) : k; };
+    const secs = (ms / 1000).toFixed(1) + ' s · ';
+    lbEl.textContent = secs + tr('sh.lbPosting');
+    lbEl.hidden = false;
+    platform.submitTime(ms).then(function (res) {
+      lbEl.textContent = secs + (!res.posted ? tr('sh.lbNotPosted')
+        : res.rank ? tr('sh.lbRank').replace('{rank}', res.rank) : tr('sh.lbPosted'));
+    });
+  }
+
   function act(dir) {
     const sfx = window.__hf_sfx;
     if (sfx) sfx.unlock();
     const prev = state;
+    if (runFresh && runStart === null && !prev.won) runStart = performance.now();
     const next = rules.applyAction(state, dir);
     if (!next) return;
     state = next;
     syncScene();
     updateHUD();
-    if (next.won && !prev.won) onWon(next);
-    else if (!next.won) saveProgress(next);
+    if (next.won && !prev.won) {
+      onWon(next);
+      if (runFresh && runStart !== null) postRun(Math.max(1, Math.round(performance.now() - runStart)));
+      runFresh = false;
+    } else if (!next.won) saveProgress(next);
     if (sfx) {
       if (next.won && !prev.won) sfx.event('win');
       else if (next.score > prev.score) sfx.event('eat');
@@ -988,6 +1011,8 @@
     const sfx = window.__hf_sfx;
     if (sfx) { sfx.unlock(); sfx.event('restart'); }
     state = freshState();
+    runFresh = true; runStart = null;
+    if (lbEl) lbEl.hidden = true;
     records.inProgress = null;
     persistRecords();
     syncScene();

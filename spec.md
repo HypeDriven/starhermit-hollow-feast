@@ -21,7 +21,7 @@ A hungry pale void hovers over a slate banquet table and must swallow twelve glo
 
 | Path | Responsibility |
 |---|---|
-| `index.html` | Entry point: layout, palette, header, canvas box, HUD, control bar, win banner, Settings dialog (Graphics + Account), StarHermit toast, import map. Loads `ui-scale.js` and `browser-guard.js` in `<head>`, then scripts in order i18n → rules → sfx → starhermit-sdk → platform → gfx → three.js → post add-ons (optional) → game. |
+| `index.html` | Entry point: layout, palette, header, canvas box, HUD, control bar, win banner and its leaderboard line (`#win-lb`), Settings dialog (Graphics + Account), StarHermit toast, import map. Loads `ui-scale.js` and `browser-guard.js` in `<head>`, then scripts in order i18n → rules → sfx → starhermit-sdk → platform → gfx → three.js → post add-ons (optional) → game. |
 | `rules.js` | Pure rules engine. `initialState`, `isLegal`, `applyAction`. No DOM, no three.js. Exported to `window.__hf_rules` and to CommonJS for tests. |
 | `game.js` | Presentation and input: scene, camera fit, mesh sync, HUD, keyboard/pointer handling, audio event dispatch, `window.__hf_debug` framing hook. |
 | `js/starhermit-sdk.js` | Shared StarHermit client (`window.StarHermit`), an unmodified copy of `tools/starhermit-sdk.js`. |
@@ -34,6 +34,7 @@ A hungry pale void hovers over a slate banquet table and must swallow twelve glo
 | `assets/board-slate.webp` | Board surface texture. |
 | `assets/backdrop.webp` | Page background haze. |
 | `sfx/*.opus`, `sfx/manifest.txt` | 18 one-shot clips; `manifest.txt` is canonical, `manifest.json` drives regeneration, `manifest.md` is the readable mirror. |
+| `score-script.js` | StarHermit platform script (`server=`): range-checks a solve time sent through `StarHermit.submitScores` and posts it to the `fastest-clear` leaderboard (canonical copy in the games repo's `tools/score-script.js`). |
 | `server.js` | Static dev host. Serves the game root, refuses `tests/`, `tools/`, `node_modules/` and dotfiles. |
 | `tests/rules.test.mjs` | `npm test` — rules contract unit tests. |
 | `tests/gfx.test.mjs` | `npm test` — graphics quality model unit tests. |
@@ -356,8 +357,8 @@ Nine locales ship: **en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it
 
 ## 12. StarHermit integration
 
-`starhermit.txt` declares `name=Hollow Feast`, `launch=index.html`, an `owner` id, `cover=coverart.png`
-(https://wiki.starhermit.com/), and the keyboard actions `control.left=ArrowLeft+KeyA`,
+`starhermit.txt` declares `name=Hollow Feast`, `launch=index.html`, an `owner` id, `server=score-script.js`,
+`cover=coverart.png` (https://wiki.starhermit.com/), and the keyboard actions `control.left=ArrowLeft+KeyA`,
 `control.right=ArrowRight+KeyD`, `control.up=ArrowUp+KeyW`, `control.down=ArrowDown+KeyS`,
 `control.restart=KeyR`.
 
@@ -377,16 +378,22 @@ token before expiry. Signed in, the game:
   platform value over the local one at boot;
 - routes `keydown` by `event.code` through `StarHermit.loadBindings`; when the player has rebound keys, the
   how-to line appends the effective keys;
-- offers **Invite a friend** in Settings → Account, copying `StarHermit.inviteLink()` with a toast.
+- offers **Invite a friend** in Settings → Account, copying `StarHermit.inviteLink()` with a toast;
+- posts every solve of a fresh board to the `fastest-clear` leaderboard (time in ms, lower is better,
+  300 ms–1 h): the wall-clock time from the first input on the board to the twelfth morsel goes through
+  `StarHermit.submitScores` (a practice session whose `score-script.js` range-checks and posts it), and a
+  line under the *Feast complete!* banner shows the time and "Leaderboard rank: #N" (or posted / not
+  posted). A board resumed from the save document is not posted. The play itself stays untimed — no clock
+  is shown while playing.
 
 Served from `<id>.starhermit.com` without a token, Settings → Account offers **Sign in with StarHermit**.
 If renewal is refused, a toast says the player is signed out and play continues locally. Account strings are
 localized in all nine locales (`sh.*` keys in `js/i18n.js`). With no token (local dev, or a player who
 refuses auth) the adapter is fully inert — zero network calls — and play is identical to a local session.
 
-Not used: there is no `server=` key and no platform script (`server.js` is a static development file host),
-so sessions, matchmaking, session invites, chat, replays, platform achievements and leaderboards have nothing
-to drive them; every result is local and non-authoritative. Realtime rooms and voice are out of scope.
+Not used: matchmaking, session invites, chat, replays and platform achievements; the only session is the
+one-message practice session that posts a solve time, and the time is client-measured (range-checked, not
+replay-validated). Realtime rooms and voice are out of scope.
 
 The rules engine is already shaped for a future validated leaderboard: pure functions, a serialisable state,
 a monotonic `tick`, an explicit terminal flag, and a fully deterministic replay from an input log.
@@ -508,7 +515,7 @@ there is no humanoid to animate.
   the engine depends on the authored order, but no generator or solvability validator ships.
 - An `invalidActions` HUD cell and an end-of-round breakdown (morsels, combo total, refusals) rather than a
   single score number.
-- A StarHermit leaderboard for fastest clean solve, validated from the deterministic input log.
+- Validating posted solve times from the deterministic input log, and a separate board for clean (zero-refusal) solves.
 - In-UI audio and locale controls bound to the existing `__hf_sfx` and `__hf_i18n` APIs.
 
 ## Browser interference

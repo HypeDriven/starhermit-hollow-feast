@@ -2,6 +2,7 @@ name=Hollow Feast
 description=Guide a hungry void across a banquet table and swallow glowing morsels in the correct numbered order.
 launch=index.html
 owner=2712e04e-461b-4d23-81ae-e40b429128a8
+server=score-script.js
 cover=cover.jpg
 control.left=ArrowLeft+KeyA | Move left
 control.right=ArrowRight+KeyD | Move right

@@ -14,7 +14,7 @@
   const STRINGS = {
     'en-US': {
       'sh.account': 'Account',
-      'sh.signIn': "Sign in with StarHermit", 'sh.invite': "Invite a friend", 'sh.copied': "Invite link copied to clipboard.", 'sh.copyFailed': "Could not copy the invite link: {link}", 'sh.signedOut': "Signed out of StarHermit. Progress keeps saving on this device.",
+      'sh.signIn': "Sign in with StarHermit", 'sh.invite': "Invite a friend", 'sh.copied': "Invite link copied to clipboard.", 'sh.copyFailed': "Could not copy the invite link: {link}", 'sh.signedOut': "Signed out of StarHermit. Progress keeps saving on this device.", 'sh.lbPosting': "Posting score to the leaderboard…", 'sh.lbRank': "Leaderboard rank: #{rank}", 'sh.lbPosted': "Score posted to the leaderboard.", 'sh.lbNotPosted': "Score not posted to the leaderboard.",
       controls: 'Game controls',
       subtitle: 'Game index 56 · collection action',
       howto: 'Eat the glowing morsels in numbered order. Arrow keys, WASD, or the buttons below. R restarts.',
@@ -29,7 +29,7 @@
     },
     'en-GB': {
       'sh.account': 'Account',
-      'sh.signIn': "Sign in with StarHermit", 'sh.invite': "Invite a friend", 'sh.copied': "Invite link copied to clipboard.", 'sh.copyFailed': "Could not copy the invite link: {link}", 'sh.signedOut': "Signed out of StarHermit. Progress keeps saving on this device.",
+      'sh.signIn': "Sign in with StarHermit", 'sh.invite': "Invite a friend", 'sh.copied': "Invite link copied to clipboard.", 'sh.copyFailed': "Could not copy the invite link: {link}", 'sh.signedOut': "Signed out of StarHermit. Progress keeps saving on this device.", 'sh.lbPosting': "Posting score to the leaderboard…", 'sh.lbRank': "Leaderboard rank: #{rank}", 'sh.lbPosted': "Score posted to the leaderboard.", 'sh.lbNotPosted': "Score not posted to the leaderboard.",
       controls: 'Game controls',
       subtitle: 'Game index 56 · collection action',
       howto: 'Eat the glowing morsels in numbered order. Arrow keys, WASD, or the buttons below. R restarts.',
@@ -44,7 +44,7 @@
     },
     'es-419': {
       'sh.account': 'Cuenta',
-      'sh.signIn': "Iniciar sesión con StarHermit", 'sh.invite': "Invitar a un amigo", 'sh.copied': "Enlace de invitación copiado al portapapeles.", 'sh.copyFailed': "No se pudo copiar el enlace de invitación: {link}", 'sh.signedOut': "Sesión de StarHermit cerrada. El progreso se sigue guardando en este dispositivo.",
+      'sh.signIn': "Iniciar sesión con StarHermit", 'sh.invite': "Invitar a un amigo", 'sh.copied': "Enlace de invitación copiado al portapapeles.", 'sh.copyFailed': "No se pudo copiar el enlace de invitación: {link}", 'sh.signedOut': "Sesión de StarHermit cerrada. El progreso se sigue guardando en este dispositivo.", 'sh.lbPosting': "Publicando la puntuación en la clasificación…", 'sh.lbRank': "Puesto en la clasificación: #{rank}", 'sh.lbPosted': "Puntuación publicada en la clasificación.", 'sh.lbNotPosted': "La puntuación no se publicó en la clasificación.",
       controls: 'Controles del juego',
       subtitle: 'Juego n.º 56 · acción de recolección',
       howto: 'Devora los bocados brillantes en orden numérico. Usa las flechas, WASD o los botones. R reinicia.',
@@ -59,7 +59,7 @@
     },
     'es-ES': {
       'sh.account': 'Cuenta',
-      'sh.signIn': "Iniciar sesión con StarHermit", 'sh.invite': "Invitar a un amigo", 'sh.copied': "Enlace de invitación copiado al portapapeles.", 'sh.copyFailed': "No se ha podido copiar el enlace de invitación: {link}", 'sh.signedOut': "Se ha cerrado la sesión de StarHermit. El progreso se sigue guardando en este dispositivo.",
+      'sh.signIn': "Iniciar sesión con StarHermit", 'sh.invite': "Invitar a un amigo", 'sh.copied': "Enlace de invitación copiado al portapapeles.", 'sh.copyFailed': "No se ha podido copiar el enlace de invitación: {link}", 'sh.signedOut': "Se ha cerrado la sesión de StarHermit. El progreso se sigue guardando en este dispositivo.", 'sh.lbPosting': "Publicando la puntuación en la clasificación…", 'sh.lbRank': "Puesto en la clasificación: #{rank}", 'sh.lbPosted': "Puntuación publicada en la clasificación.", 'sh.lbNotPosted': "La puntuación no se ha publicado en la clasificación.",
       controls: 'Controles del juego',
       subtitle: 'Juego n.º 56 · acción de recolección',
       howto: 'Devórate los bocados brillantes en orden numérico. Usa las flechas, WASD o los botones. R reinicia.',
@@ -74,7 +74,7 @@
     },
     'de-DE': {
       'sh.account': 'Konto',
-      'sh.signIn': "Mit StarHermit anmelden", 'sh.invite': "Freund einladen", 'sh.copied': "Einladungslink in die Zwischenablage kopiert.", 'sh.copyFailed': "Einladungslink konnte nicht kopiert werden: {link}", 'sh.signedOut': "Von StarHermit abgemeldet. Der Fortschritt wird weiter auf diesem Gerät gespeichert.",
+      'sh.signIn': "Mit StarHermit anmelden", 'sh.invite': "Freund einladen", 'sh.copied': "Einladungslink in die Zwischenablage kopiert.", 'sh.copyFailed': "Einladungslink konnte nicht kopiert werden: {link}", 'sh.signedOut': "Von StarHermit abgemeldet. Der Fortschritt wird weiter auf diesem Gerät gespeichert.", 'sh.lbPosting': "Punktzahl wird an die Bestenliste gesendet …", 'sh.lbRank': "Platz in der Bestenliste: #{rank}", 'sh.lbPosted': "Punktzahl in der Bestenliste eingetragen.", 'sh.lbNotPosted': "Punktzahl nicht in der Bestenliste eingetragen.",
       controls: 'Spielsteuerung',
       subtitle: 'Spiel Nr. 56 · Sammel-Action',
       howto: 'Verschlinge die leuchtenden Happen in der richtigen Reihenfolge. Pfeiltasten, WASD oder die Schaltflächen. R startet neu.',
@@ -89,7 +89,7 @@
     },
     'fr-FR': {
       'sh.account': 'Compte',
-      'sh.signIn': "Se connecter avec StarHermit", 'sh.invite': "Inviter un ami", 'sh.copied': "Lien d’invitation copié dans le presse-papiers.", 'sh.copyFailed': "Impossible de copier le lien d’invitation : {link}", 'sh.signedOut': "Déconnecté de StarHermit. La progression reste enregistrée sur cet appareil.",
+      'sh.signIn': "Se connecter avec StarHermit", 'sh.invite': "Inviter un ami", 'sh.copied': "Lien d’invitation copié dans le presse-papiers.", 'sh.copyFailed': "Impossible de copier le lien d’invitation : {link}", 'sh.signedOut': "Déconnecté de StarHermit. La progression reste enregistrée sur cet appareil.", 'sh.lbPosting': "Envoi du score au classement…", 'sh.lbRank': "Rang au classement : #{rank}", 'sh.lbPosted': "Score publié au classement.", 'sh.lbNotPosted': "Score non publié au classement.",
       controls: 'Commandes du jeu',
       subtitle: 'Jeu n° 56 · action de collecte',
       howto: 'Avalez les bouchées lumineuses dans l’ordre numéroté. Flèches, WASD ou les boutons. R relance.',
@@ -104,7 +104,7 @@
     },
     'fr-CA': {
       'sh.account': 'Compte',
-      'sh.signIn': "Se connecter avec StarHermit", 'sh.invite': "Inviter un ami", 'sh.copied': "Lien d’invitation copié dans le presse-papiers.", 'sh.copyFailed': "Impossible de copier le lien d’invitation : {link}", 'sh.signedOut': "Déconnecté de StarHermit. La progression reste enregistrée sur cet appareil.",
+      'sh.signIn': "Se connecter avec StarHermit", 'sh.invite': "Inviter un ami", 'sh.copied': "Lien d’invitation copié dans le presse-papiers.", 'sh.copyFailed': "Impossible de copier le lien d’invitation : {link}", 'sh.signedOut': "Déconnecté de StarHermit. La progression reste enregistrée sur cet appareil.", 'sh.lbPosting': "Envoi du pointage au classement…", 'sh.lbRank': "Rang au classement : #{rank}", 'sh.lbPosted': "Pointage publié au classement.", 'sh.lbNotPosted': "Pointage non publié au classement.",
       controls: 'Commandes du jeu',
       subtitle: 'Jeu n° 56 · action de collecte',
       howto: 'Avalez les bouchées lumineuses dans l’ordre numéroté. Flèches, WASD ou les boutons. R redémarre.',
@@ -119,7 +119,7 @@
     },
     'pt-BR': {
       'sh.account': 'Conta',
-      'sh.signIn': "Entrar com StarHermit", 'sh.invite': "Convidar um amigo", 'sh.copied': "Link de convite copiado para a área de transferência.", 'sh.copyFailed': "Não foi possível copiar o link de convite: {link}", 'sh.signedOut': "Você saiu do StarHermit. O progresso continua salvo neste dispositivo.",
+      'sh.signIn': "Entrar com StarHermit", 'sh.invite': "Convidar um amigo", 'sh.copied': "Link de convite copiado para a área de transferência.", 'sh.copyFailed': "Não foi possível copiar o link de convite: {link}", 'sh.signedOut': "Você saiu do StarHermit. O progresso continua salvo neste dispositivo.", 'sh.lbPosting': "Enviando a pontuação para o ranking…", 'sh.lbRank': "Posição no ranking: #{rank}", 'sh.lbPosted': "Pontuação enviada para o ranking.", 'sh.lbNotPosted': "A pontuação não foi enviada para o ranking.",
       controls: 'Controles do jogo',
       subtitle: 'Jogo n.º 56 · ação de coleta',
       howto: 'Devore os petiscos brilhantes na ordem numérica. Setas, WASD ou os botões. R reinicia.',
@@ -134,7 +134,7 @@
     },
     'it-IT': {
       'sh.account': 'Account',
-      'sh.signIn': "Accedi con StarHermit", 'sh.invite': "Invita un amico", 'sh.copied': "Link di invito copiato negli appunti.", 'sh.copyFailed': "Impossibile copiare il link di invito: {link}", 'sh.signedOut': "Disconnesso da StarHermit. I progressi restano salvati su questo dispositivo.",
+      'sh.signIn': "Accedi con StarHermit", 'sh.invite': "Invita un amico", 'sh.copied': "Link di invito copiato negli appunti.", 'sh.copyFailed': "Impossibile copiare il link di invito: {link}", 'sh.signedOut': "Disconnesso da StarHermit. I progressi restano salvati su questo dispositivo.", 'sh.lbPosting': "Invio del punteggio alla classifica…", 'sh.lbRank': "Posizione in classifica: #{rank}", 'sh.lbPosted': "Punteggio pubblicato in classifica.", 'sh.lbNotPosted': "Punteggio non pubblicato in classifica.",
       controls: 'Comandi di gioco',
       subtitle: 'Gioco n. 56 · azione di raccolta',
       howto: 'Divora i bocconi luminosi nell’ordine numerato. Frecce, WASD o i pulsanti. R ricomincia.',
