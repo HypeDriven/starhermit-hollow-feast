@@ -370,7 +370,8 @@ token before expiry. Signed in, the game:
   in the HUD player cell next to the sync chip;
 - keeps progress and personal records — the best line (score, refusals, ticks), win/clean-win counts and
   the mid-round board — in one JSON save document: `localStorage['hf.save.v1']` is the offline cache, the
-  cloud-save slot `game:<slug>` is loaded remote-preferred at boot and written with a 2 s debounce and a
+  cloud-save slot `game:<slug>` is loaded remote-preferred at boot (nothing is written until that load
+  settles; a save made meanwhile is dropped if a remote doc was adopted) and written with a 2 s debounce and a
   keepalive flush on `pagehide`/hidden; the sync cell shows local/loading/saving/synced/offline/error;
 - mirrors the Graphics settings (`hf.gfx.v1`) to the per-player settings KV on every change and applies the
   platform value over the local one at boot;

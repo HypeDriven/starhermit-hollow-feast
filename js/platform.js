@@ -53,6 +53,7 @@
 
   let loadedDoc = null;   // the save document currently in force
   let cloudLoaded = false;
+  let pushHeld = false;
   let cloudError = false;
   let saving = false;
 
@@ -108,7 +109,12 @@
     loadedDoc = { v: 1, records: sanitizeRecords(doc && doc.records) };
     writeLocalDoc(loadedDoc);
     emitDoc();
-    if (signedIn()) { saving = true; SH.saveJSON(loadedDoc); }
+    // Held until the start-up load settles: a doc queued before then would
+    // still be PUT after the remote one is adopted, over the newer cloud save.
+    if (signedIn()) {
+      if (!cloudLoaded) pushHeld = true;
+      else { saving = true; SH.saveJSON(loadedDoc); }
+    }
     refreshStatus();
   }
 
@@ -155,6 +161,9 @@
           emitDoc();
         }
         cloudLoaded = true;
+        // A held save is stale once the remote doc is adopted; else push it.
+        if (pushHeld && !doc) { saving = true; SH.saveJSON(loadedDoc); }
+        pushHeld = false;
         refreshStatus();
       });
     } else {
