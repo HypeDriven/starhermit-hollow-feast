@@ -737,8 +737,8 @@
       postKey = key;
       buildPost(w, h);
     }
-    if (composer) composer.render(dt / 1000);
-    else renderer.render(scene, camera);
+    if (composer) (globalThis.GameOptions ? globalThis.GameOptions.draw(composer.renderer, () => composer.render(dt / 1000)) : composer.render(dt / 1000));
+    else (globalThis.GameOptions ? globalThis.GameOptions.draw(renderer, () => renderer.render(scene, camera)) : renderer.render(scene, camera));
   }
 
   // ---------------------------------------------------------------- settings panel

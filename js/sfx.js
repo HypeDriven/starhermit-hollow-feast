@@ -86,7 +86,7 @@
   }
 
   function playBuffer(buffer) {
-    const src = ctx.createBufferSource();
+    const src = (globalThis.GameOptions ? globalThis.GameOptions.trackSource(ctx.createBufferSource(), null) : ctx.createBufferSource());
     src.buffer = buffer;
     src.connect(effectsBus);
     src.start();
@@ -96,7 +96,7 @@
 
   function tone(freqA, freqB, dur, type, peak, delay) {
     const t0 = ctx.currentTime + (delay || 0);
-    const osc = ctx.createOscillator();
+    const osc = (globalThis.GameOptions ? globalThis.GameOptions.trackSource(ctx.createOscillator(), null) : ctx.createOscillator());
     const g = ctx.createGain();
     osc.type = type;
     osc.frequency.setValueAtTime(freqA, t0);
