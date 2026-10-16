@@ -21,7 +21,7 @@ A hungry pale void hovers over a slate banquet table and must swallow twelve glo
 
 | Path | Responsibility |
 |---|---|
-| `index.html` | Entry point: layout, palette, header, canvas box, HUD, control bar, win banner and its leaderboard line (`#win-lb`), Settings dialog (Graphics + Account), StarHermit toast, import map. Loads `ui-scale.js` and `browser-guard.js` in `<head>`, then scripts in order i18n → rules → sfx → starhermit-sdk → platform → gfx → three.js → post add-ons (optional) → game. |
+| `index.html` | Entry point: layout, palette, header, canvas box, HUD, control bar, win banner and its leaderboard line (`#win-lb`), Settings dialog (Graphics + Account), StarHermit toast, import map. Loads `ui-scale.js` and `browser-guard.js` in `<head>`, then scripts in order sh-language → i18n → rules → sfx → starhermit-sdk → platform → gfx → three.js → post add-ons (optional) → game. |
 | `rules.js` | Pure rules engine. `initialState`, `isLegal`, `applyAction`. No DOM, no three.js. Exported to `window.__hf_rules` and to CommonJS for tests. |
 | `game.js` | Presentation and input: scene, camera fit, mesh sync, HUD, keyboard/pointer handling, audio event dispatch, `window.__hf_debug` framing hook. |
 | `js/starhermit-sdk.js` | Shared StarHermit client (`window.StarHermit`), an unmodified copy of `tools/starhermit-sdk.js`. |
@@ -321,10 +321,18 @@ Nine locales ship: **en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it
   is set to the resolved tag. The Settings dialog's strings (Graphics labels, tier names, "Auto (detected: …)",
   "From preset (…)", the post-processing note and the cost-summary words) are in all nine locales; `game.js`
   reads them through `__hf_i18n.t` when it builds the Graphics controls. GPU names and AA acronyms stay as-is.
-- Selection order: `?lang=` query parameter → `localStorage['hf.lang']` → `navigator.languages` in order,
-  matching the exact tag first, then the base language via a fallback map (`es → es-419`, `fr → fr-FR`,
-  `pt → pt-BR`, `en → en-US`, `de → de-DE`, `it → it-IT`) → `en-US`. Storage access is wrapped in try/catch
-  for private-mode and opaque-origin contexts.
+- Settings → **Language → Game language** (rendered by `game-options.js` from the `sh-language.js` instance)
+  offers **Automatic — <resolved language>** plus the nine locales by native name, with a status line
+  (Saved to account / Saved on this device / Account sync unavailable). A change applies immediately:
+  `data-i18n` text is re-applied, `hf-language` fires, and the Graphics labels, sync chip, player cell and
+  how-to line re-render without restarting the round.
+- Resolution (`js/sh-language.js`): explicit game choice → for Automatic, the StarHermit account's
+  `preferredLanguage` (`GET /api/v1/me/language`, signed in only) → `navigator.languages` → `en-US`. Tags map
+  to the nearest shipped locale (`es-MX → es-419`, `en-AU → en-GB`, `fr → fr-FR`, `pt-PT → pt-BR`). The
+  choice (`auto` or a locale) is stored per player in `localStorage['hollow-feast.language.<user|guest>']`
+  (migrating the old `hf.lang`) and, when signed in, in the per-player settings key `ui.language` as
+  `{ choice }`; a failed settings read never overwrites it, and the game never writes the platform
+  preference. `?lang=` forces a locale for the page load (QA links) and hides the selector.
 - The game name "Hollow Feast" is a proper noun and is never translated. Score and progress are digits and
   the `n / 12` separator, so no locale changes what the HUD or the automated playthrough reads.
 - Expansion: the rule line is capped at 62 characters wide and wraps freely; HUD labels sit in a flex row
@@ -378,6 +386,12 @@ token before expiry. Signed in, the game:
   platform value over the local one at boot;
 - routes `keydown` by `event.code` through `StarHermit.loadBindings`; when the player has rebound keys, the
   how-to line appends the effective keys;
+- when another device saved first (the SDK's conditional write is refused and emits `saveconflict`),
+  reloads the cloud document and merges it — higher best score, larger win counts, this device's
+  in-progress board — then saves the merged document;
+- Settings → **Report a problem** (signed in only, from `game-options.js`) files a bug report through
+  `StarHermit.reportBug` with a small non-personal `context.json` (viewport, language, FPS cap, audio limit);
+  uncaught errors are filed as crash reports through `StarHermit.captureCrashes` (SDK-capped);
 - offers **Invite a friend** in Settings → Account, copying `StarHermit.inviteLink()` with a toast;
 - posts every solve of a fresh board to the `fastest-clear` leaderboard (time in ms, lower is better,
   300 ms–1 h): the wall-clock time from the first input on the board to the twelfth morsel goes through

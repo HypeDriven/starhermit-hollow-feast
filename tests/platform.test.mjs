@@ -95,7 +95,7 @@ test('hosted mode: settings KV patch, bindings, invite link', async () => {
 });
 
 test('hosted domain without a token offers sign-in', () => {
-  const w = loadScripts(FILES, { hostname: 'gid-1.starhermit.com', extra: { document: hudDocument().document } });
+  const w = loadScripts(FILES, { hostname: '0b9d6f2e-3c4a-4e5b-9a7c-1d2e3f405162.starhermit.com', extra: { document: hudDocument().document } });
   assert.equal(w.__hf_platform.launch(), null);
   assert.equal(w.__hf_platform.canSignIn(), true);
 });

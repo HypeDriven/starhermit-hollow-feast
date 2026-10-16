@@ -34,6 +34,14 @@
     return { best: best, wins: num(r.wins), cleanWins: num(r.cleanWins), inProgress: ip };
   }
 
+  // Another device saved since our last load: keep the better record of each
+  // and this device's in-progress round.
+  function mergeRecords(remote, local) {
+    const a = sanitizeRecords(remote), b = sanitizeRecords(local);
+    const best = !a.best ? b.best : !b.best ? a.best : (b.best.score > a.best.score ? b.best : a.best);
+    return { best: best, wins: Math.max(a.wins, b.wins), cleanWins: Math.max(a.cleanWins, b.cleanWins), inProgress: b.inProgress || a.inProgress };
+  }
+
   function readLocalDoc() {
     try {
       const raw = window.localStorage && window.localStorage.getItem(LS_KEY);
@@ -139,6 +147,15 @@
     if (SH) {
       SH.init();
       SH.on('saved', function (ok) { saving = false; cloudError = !ok; refreshStatus(); });
+      SH.on('saveconflict', function () {
+        SH.loadJSON().then(function (remote) {
+          loadedDoc = { v: 1, records: mergeRecords(remote && remote.records, loadedDoc && loadedDoc.records) };
+          writeLocalDoc(loadedDoc);
+          emitDoc();
+          if (!SH.saveConflicted()) { saving = true; SH.saveJSON(loadedDoc); }
+          refreshStatus();
+        });
+      });
       SH.on('auth', function (a) {
         if (!a.signedIn) setPlayer(t('localPlayer'));
         refreshStatus();
@@ -174,6 +191,10 @@
     window.addEventListener('pagehide', function () { flush(true); });
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'hidden') flush(true);
+    });
+    document.addEventListener('hf-language', function () {
+      if (!signedIn()) setPlayer(t('localPlayer'));
+      refreshStatus();
     });
     window.addEventListener('offline', refreshStatus);
     window.addEventListener('online', refreshStatus);

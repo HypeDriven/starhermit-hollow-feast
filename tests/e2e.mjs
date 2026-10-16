@@ -288,6 +288,32 @@ async function runPass(name, viewport, hasTouch, browser) {
       await page.click('#settings-close');
       await page.unroute(/\/api\/v1\//);
     });
+
+    await step('Language: Automatic follows the StarHermit preferred language; explicit choice syncs to ui.language; report a problem', async () => {
+      const calls = await stubStarHermit(page, { preferredLanguage: 'fr-CA' });
+      await page.goto('about:blank');
+      await page.goto(BASE + '/index.html#game_token=' + launchToken(), { waitUntil: 'load' });
+      await page.waitForFunction(() => document.documentElement.lang === 'fr-CA');
+      await page.click('#settings-btn');
+      const choice = page.locator('[data-game-language="choice"]');
+      await choice.scrollIntoViewIfNeeded();
+      if (!/^Automatique — Français \(Canada\)$/.test(await choice.locator('option').first().textContent())) throw new Error('Automatic label not resolved');
+      await choice.selectOption('it-IT');
+      await page.waitForFunction(() => document.documentElement.lang === 'it-IT');
+      await page.waitForFunction(() => /Salvato/.test(document.querySelector('[data-game-language="status"]').textContent));
+      if (calls.settings['ui.language']?.choice !== 'it-IT') throw new Error('ui.language not saved: ' + JSON.stringify(calls.settings));
+      if (!/Impostazioni/.test(await page.locator('#settings-title').textContent())) throw new Error('settings title not re-rendered');
+      await page.locator('[data-game-report="title"]').scrollIntoViewIfNeeded();
+      await page.fill('[data-game-report="title"]', 'Test report');
+      await page.click('[data-game-report="send"]');
+      await page.waitForFunction(() => /Grazie/.test(document.querySelector('[data-game-report="status"]').textContent));
+      if (!calls.reports?.[0] || calls.reports[0].kind !== 'bug') throw new Error('report not posted');
+      await page.screenshot({ path: SHOT('language', name) });
+      await choice.selectOption('auto');
+      await page.waitForFunction(() => document.documentElement.lang === 'fr-CA');
+      await page.click('#settings-close');
+      await page.unroute(/\/api\/v1\//);
+    });
   } finally {
     await context.close();
   }

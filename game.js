@@ -763,6 +763,7 @@
     const l = document.createElement('label');
     l.htmlFor = id;
     l.textContent = tr(labelKey);
+    l.setAttribute('data-i18n', labelKey);
     r.appendChild(l);
     r.appendChild(control);
     controlsBox.appendChild(r);
@@ -1042,6 +1043,8 @@
       ' · ↓ ' + keys('down') + ' · ↻ ' + keys('restart') + ')';
   }
   if (platform) platform.loadBindings(DEFAULT_BINDINGS).then(function (b) { bindings = b; showBindings(); });
+  // Language changes re-apply data-i18n text; refresh text built in code.
+  document.addEventListener('hf-language', function () { refreshPanel(); showBindings(); });
 
   window.addEventListener('keydown', function (e) {
     if (panelOpen()) { panelKey(e); return; }

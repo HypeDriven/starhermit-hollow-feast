@@ -4,8 +4,10 @@
  * Hollow Feast localization.
  *
  * Ships nine locales (en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR,
- * it-IT). The locale is chosen from ?lang=, then localStorage('hf.lang'), then
- * navigator.languages (exact tag, then base language), falling back to en-US.
+ * it-IT). ?lang= forces a locale for the page load; otherwise sh-language.js
+ * resolves the game's Language setting (Automatic follows the StarHermit
+ * account's preferred language, then navigator.languages), falling back to en-US.
+ * Changing the language re-applies text live and fires `hf-language`.
  * Strings are applied to any element carrying data-i18n (text content) or
  * data-i18n-aria (aria-label). Numbers stay locale-independent so the HUD and
  * the automated playthrough read the same values everywhere.
@@ -250,32 +252,14 @@
   };
   Object.keys(GFX).forEach(function (tag) { if (STRINGS[tag]) Object.assign(STRINGS[tag], GFX[tag]); });
 
-  const BASE = { en: 'en-US', es: 'es-419', de: 'de-DE', fr: 'fr-FR', pt: 'pt-BR', it: 'it-IT' };
-
-  function pick() {
-    const tags = [];
-    try {
-      const q = new URLSearchParams(window.location.search).get('lang');
-      if (q) tags.push(q);
-      const saved = window.localStorage && window.localStorage.getItem('hf.lang');
-      if (saved) tags.push(saved);
-    } catch (_) { /* private mode or opaque origin: fall through */ }
-    const navTags = (navigator.languages && navigator.languages.length)
-      ? navigator.languages : [navigator.language || 'en-US'];
-    for (let i = 0; i < navTags.length; i++) tags.push(navTags[i]);
-    for (let i = 0; i < tags.length; i++) {
-      const tag = String(tags[i]);
-      if (STRINGS[tag]) return tag;
-      const canon = tag.split('-')[0].toLowerCase() + (tag.split('-')[1] ? '-' + tag.split('-')[1].toUpperCase() : '');
-      if (STRINGS[canon]) return canon;
-      const base = BASE[tag.split('-')[0].toLowerCase()];
-      if (base) return base;
-    }
-    return 'en-US';
-  }
-
-  const lang = pick();
-  const dict = STRINGS[lang];
+  // Language resolution follows the StarHermit tutorial through sh-language.js:
+  // explicit game choice (ui.language) → account preferredLanguage → device → en-US.
+  // ?lang= still forces a locale for this page load (automation and QA links).
+  let forced = null;
+  try { forced = new URLSearchParams(window.location.search).get('lang'); } catch (_) { /* opaque origin */ }
+  const SUPPORTED = Object.keys(STRINGS);
+  let lang = 'en-US';
+  let dict = STRINGS[lang];
 
   function t(key) {
     return (dict && dict[key]) || STRINGS['en-US'][key] || key;
@@ -292,7 +276,22 @@
     document.documentElement.lang = lang;
   }
 
-  window.__hf_i18n = { lang: lang, t: t, apply: apply, locales: Object.keys(STRINGS) };
+  function setLocale(next) {
+    lang = STRINGS[next] ? next : 'en-US';
+    dict = STRINGS[lang];
+    if (document.readyState !== 'loading') apply();
+    // Modules that render text dynamically refresh on this event.
+    document.dispatchEvent(new CustomEvent('hf-language', { detail: { lang: lang } }));
+  }
+
+  const forcedLocale = forced && window.StarHermitLanguage ? window.StarHermitLanguage.match(forced, SUPPORTED) : null;
+  const language = window.StarHermitLanguage ? window.StarHermitLanguage.create({
+    game: 'hollow-feast', supported: SUPPORTED, legacyKey: 'hf.lang', panel: !forcedLocale,
+    apply: function (locale) { setLocale(forcedLocale || locale); },
+  }) : null;
+  if (!language) setLocale('en-US');
+
+  window.__hf_i18n = { get lang() { return lang; }, t: t, apply: apply, locales: SUPPORTED, language: language };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { apply(); });
   else apply();
 })();
