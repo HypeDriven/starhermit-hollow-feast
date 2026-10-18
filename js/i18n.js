@@ -154,7 +154,7 @@
   // Settings panel / Graphics section strings (merged into STRINGS above).
   const GFX_EN = {
     settings: 'Settings', graphics: 'Graphics', close: 'Close settings',
-    gfxQuality: 'Quality', gfxAuto: 'Auto (detected: {tier})',
+    gfxLevel: 'Level {level}', gfxQuality: 'Quality', gfxAuto: 'Auto (detected: {tier})',
     tierLow: 'Low', tierBalanced: 'Balanced', tierHigh: 'High', tierUltra: 'Ultra',
     gfxScale: 'Render scale', gfxFromPreset: 'From preset ({tier})',
     cat_shadows: 'Shadows', cat_ao: 'Ambient occlusion', cat_bloom: 'Bloom', cat_grade: 'Color grade',
@@ -169,7 +169,7 @@
   };
   const GFX_ES = {
     settings: 'Ajustes', graphics: 'Gráficos', close: 'Cerrar ajustes',
-    gfxQuality: 'Calidad', gfxAuto: 'Automático (detectado: {tier})',
+    gfxLevel: 'Nivel {level}', gfxQuality: 'Calidad', gfxAuto: 'Automático (detectado: {tier})',
     tierLow: 'Baja', tierBalanced: 'Equilibrada', tierHigh: 'Alta', tierUltra: 'Ultra',
     gfxScale: 'Escala de renderizado', gfxFromPreset: 'Según calidad ({tier})',
     cat_shadows: 'Sombras', cat_ao: 'Oclusión ambiental', cat_bloom: 'Resplandor', cat_grade: 'Corrección de color',
@@ -184,7 +184,7 @@
   };
   const GFX_FR = {
     settings: 'Paramètres', graphics: 'Graphismes', close: 'Fermer les paramètres',
-    gfxQuality: 'Qualité', gfxAuto: 'Auto (détecté : {tier})',
+    gfxLevel: 'Niveau {level}', gfxQuality: 'Qualité', gfxAuto: 'Auto (détecté : {tier})',
     tierLow: 'Basse', tierBalanced: 'Équilibrée', tierHigh: 'Haute', tierUltra: 'Ultra',
     gfxScale: 'Échelle de rendu', gfxFromPreset: 'Selon la qualité ({tier})',
     cat_shadows: 'Ombres', cat_ao: 'Occlusion ambiante', cat_bloom: 'Halo lumineux', cat_grade: 'Étalonnage des couleurs',
@@ -204,7 +204,7 @@
     'es-ES': Object.assign({}, GFX_ES, { gfxAuto: 'Automática (detectada: {tier})' }),
     'de-DE': {
       settings: 'Einstellungen', graphics: 'Grafik', close: 'Einstellungen schließen',
-      gfxQuality: 'Qualität', gfxAuto: 'Automatisch (erkannt: {tier})',
+      gfxLevel: 'Stufe {level}', gfxQuality: 'Qualität', gfxAuto: 'Automatisch (erkannt: {tier})',
       tierLow: 'Niedrig', tierBalanced: 'Ausgewogen', tierHigh: 'Hoch', tierUltra: 'Ultra',
       gfxScale: 'Renderskalierung', gfxFromPreset: 'Laut Stufe ({tier})',
       cat_shadows: 'Schatten', cat_ao: 'Umgebungs\u00ADverdeckung', cat_bloom: 'Leuchteffekt', cat_grade: 'Farbkorrektur',
@@ -221,7 +221,7 @@
     'fr-CA': Object.assign({}, GFX_FR, { cat_bloom: 'Effet de lueur', sum_bloom: 'lueur' }),
     'pt-BR': {
       settings: 'Configurações', graphics: 'Gráficos', close: 'Fechar configurações',
-      gfxQuality: 'Qualidade', gfxAuto: 'Automática (detectada: {tier})',
+      gfxLevel: 'Nível {level}', gfxQuality: 'Qualidade', gfxAuto: 'Automática (detectada: {tier})',
       tierLow: 'Baixa', tierBalanced: 'Equilibrada', tierHigh: 'Alta', tierUltra: 'Ultra',
       gfxScale: 'Escala de renderização', gfxFromPreset: 'Conforme a qualidade ({tier})',
       cat_shadows: 'Sombras', cat_ao: 'Oclusão ambiente', cat_bloom: 'Brilho', cat_grade: 'Correção de cor',
@@ -236,7 +236,7 @@
     },
     'it-IT': {
       settings: 'Impostazioni', graphics: 'Grafica', close: 'Chiudi impostazioni',
-      gfxQuality: 'Qualità', gfxAuto: 'Automatica (rilevata: {tier})',
+      gfxLevel: 'Livello {level}', gfxQuality: 'Qualità', gfxAuto: 'Automatica (rilevata: {tier})',
       tierLow: 'Bassa', tierBalanced: 'Bilanciata', tierHigh: 'Alta', tierUltra: 'Ultra',
       gfxScale: 'Scala di rendering', gfxFromPreset: 'Dalla qualità ({tier})',
       cat_shadows: 'Ombre', cat_ao: 'Occlusione ambientale', cat_bloom: 'Bagliore', cat_grade: 'Correzione colore',

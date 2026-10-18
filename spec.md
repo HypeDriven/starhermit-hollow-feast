@@ -21,7 +21,7 @@ A hungry pale void hovers over a slate banquet table and must swallow twelve glo
 
 | Path | Responsibility |
 |---|---|
-| `index.html` | Entry point: layout, palette, header, canvas box, HUD, control bar, win banner and its leaderboard line (`#win-lb`), Settings dialog (Graphics + Account), StarHermit toast, import map. Loads `ui-scale.js` and `browser-guard.js` in `<head>`, then scripts in order sh-language → i18n → rules → sfx → starhermit-sdk → platform → gfx → three.js → post add-ons (optional) → game. |
+| `index.html` | Entry point: layout, palette, header, canvas box, HUD, control bar, win banner and its leaderboard line (`#win-lb`), Settings dialog (Graphics + Account), StarHermit toast, import map. Loads `ui-scale.js` and `browser-guard.js` in `<head>`, then scripts in order sh-language → i18n → rules → sfx → starhermit-sdk → platform → gpu-level → gfx → three.js → post add-ons (optional) → game. |
 | `rules.js` | Pure rules engine. `initialState`, `isLegal`, `applyAction`. No DOM, no three.js. Exported to `window.__hf_rules` and to CommonJS for tests. |
 | `game.js` | Presentation and input: scene, camera fit, mesh sync, HUD, keyboard/pointer handling, audio event dispatch, `window.__hf_debug` framing hook. |
 | `js/starhermit-sdk.js` | Shared StarHermit client (`window.StarHermit`), an unmodified copy of `tools/starhermit-sdk.js`. |
@@ -29,7 +29,8 @@ A hungry pale void hovers over a slate banquet table and must swallow twelve glo
 | `js/i18n.js` | Nine-locale string table, locale selection, `data-i18n` / `data-i18n-aria` application. |
 | `js/sfx.js` | Web Audio engine: event → clip round-robin with a procedural synth fallback. |
 | `js/three.module.min.js`, `js/three.core.min.js` | Vendored three.js r178 (import-mapped as `three`). |
-| `js/gfx.js` | Pure graphics quality model: presets, per-effect tiers, GPU detection, `resolve`, `presetTier`, `choosePreset`, `describe`. Exported to `window.__hf_gfx` and CommonJS. |
+| `js/gpu-level.js` | Shared StarHermit hardware level (`window.StarHermitGpu`), an unmodified copy of `tools/gpu-level.js`. |
+| `js/gfx.js` | Pure graphics quality model: presets, per-effect tiers, hardware-level detection (`detectLevel`, `presetForLevel`, `detectPreset`), per-preset budgets (`BUDGETS`, `budget`), `resolve`, `presetTier`, `choosePreset`, `describe`. Exported to `window.__hf_gfx` and CommonJS. |
 | `js/post.js`, `js/addons/**` | Optional render add-ons: EffectComposer passes (Render, GTAO, UnrealBloom, Shader, Output, SMAA), FXAA shader and RoomEnvironment, vendored from three.js r178 `examples/jsm` (import-mapped as `three/addons/`). Loaded dynamically; a failure only disables post-processing and reflections. |
 | `assets/board-slate.webp` | Board surface texture. |
 | `assets/backdrop.webp` | Page background haze. |
@@ -40,6 +41,7 @@ A hungry pale void hovers over a slate banquet table and must swallow twelve glo
 | `tests/gfx.test.mjs` | `npm test` — graphics quality model unit tests. |
 | `tests/platform.test.mjs` | `npm test` — `js/platform.js` over the SDK with a stubbed fetch and launch fragment. |
 | `tests/e2e.mjs` | `npm run test:e2e` — Playwright playthrough of the real UI at four viewports. |
+| `tests/gfx-bench.mjs` | Real-GPU benchmark hook for `tools/gfx-bench.mjs` (dev-only, never run in CI). |
 | `coverart.png`, `icon.png`, `favicon.svg`, `starhermit.txt`, `LICENSE.md` | Platform manifest and artwork. |
 
 ---
@@ -228,7 +230,7 @@ is the ~1778×1000 layout magnified; the canvas multiplies its pixel ratio by `U
 | Body text | `#e8ecf4`; secondary `#9aa7bd`; rule line `#b9c6dc` |
 | Controls | `#233047`; focus ring `#6ea3ff` |
 
-**Shape language.** Two shapes only, and they read as predator and prey: a smooth 32×32 sphere for the void,
+**Shape language.** Two shapes only, and they read as predator and prey: a smooth sphere for the void (20–64 segments by preset),
 flat-shaded icosahedra for the morsels. Flat shading gives the food facets that catch the directional light,
 so twelve identical objects still read individually against the slab.
 
@@ -246,25 +248,62 @@ with no post chain at 1× pixel ratio. Optional effects: PCF soft shadows from t
 image-based reflections from a PMREM-filtered `RoomEnvironment` on physical materials (clearcoated morsels,
 plates and void); a "detailed" table (a thick slate slab, a walnut table top with procedural grain, and
 lathed ceramic plates under the twelve courses that stay behind as the eaten record); a warm point light
-that pools under the next morsel; drifting warm motes (40 or 120 additive points); GTAO contact darkening;
+that pools under the next morsel; drifting warm motes (additive points, counted per preset — see the budget table); GTAO contact darkening;
 UnrealBloom at threshold 0.9 so only the next morsel's glow and the void's sheen halo (the next-morsel
 emissive rises to 1.35 when bloom is on); a colour grade (S-curve, +10 % saturation, cool shadows / warm
 highlights) with vignette; and FXAA/SMAA/MSAA anti-aliasing. The post chain is RenderPass → GTAO → bloom →
 OutputPass → grade → SMAA/FXAA on a half-float target (4× multisampled for MSAA) and runs only when an effect
 needs it. Settings live in the Settings dialog's **Graphics** section: Quality (Auto — chosen from the
-WebGL renderer string, software renderers get Low, discrete GPUs and Apple M get High, others Balanced,
-touch devices capped at Balanced — then Low, Balanced, High, Ultra); a render scale slider (50–200 % of the
+StarHermit hardware level, see below — then Low, Balanced, High, Ultra); a render scale slider (50–200 % of the
 preset's; the device pixel ratio is capped at 1 / 1.5 / 2 / 2 per preset); one select per effect — Shadows,
 Ambient occlusion, Bloom, Colour grade, Anti-aliasing, Reflections, Table detail, Floating motes — defaulting
 to "From preset (…)"; Adaptive resolution (on by default: over ~90-frame windows the scale steps down 0.1 to
 a 0.6 floor above 26 ms and back up 0.05 below 14 ms); Show frame rate (off by default; a top-left readout
-that never takes pointer events); and a summary line "GPU · cost summary · W×H px". Choosing a preset clears
+that never takes pointer events); and a summary line "GPU · Level N · cost summary · W×H px" ("Level" localized in the nine locales). Choosing a preset clears
 the per-effect overrides. Changes apply live and persist in `localStorage['hf.gfx.v1']`. The canvas carries
 `data-gfx-preset`, `data-gfx-post` and one `data-gfx-<effect>` attribute per effect. Canvas MSAA is fixed when
 the context is created, so a boot with a non-MSAA choice renders a live switch to MSAA through the
 multisampled post target, and a live switch to "Off" from a MSAA boot keeps the canvas's own smoothing until
 the next load. If the add-ons fail to load or the chain throws, the board renders directly and the panel says
 post-processing is unavailable.
+
+**Hardware-level detection.** `js/gpu-level.js` (shared StarHermit copy, `window.StarHermitGpu`, never edited
+here) rates the WebGL renderer string plus device facts (`detectSystem()`: phone/tablet, cores, memory,
+screen, ASTC) on the StarHermit hardware level 0–20 (0 = Galaxy S20 / Intel UHD or weaker and every software
+renderer, 20 = RTX 5090, each level ≈ 1.23×; laptop parts two levels below the desktop part; phones, tablets
+and ≤ 4 GB machines capped at 9). `js/gfx.js` maps it with `presetForLevel(level, { low: 0, balanced: 4,
+high: 10, ultra: 17 })`, so Auto picks Ultra on strong GPUs; adaptive resolution still steps down when frames
+are slow. Headless SwiftShader is level 0 → Low. Phones and tablets pace Auto FPS at half the display refresh
+rate ("Auto (half refresh rate)") and start at 16 simultaneous sounds (shared `game-options.js`).
+
+**Per-preset budgets** (`BUDGETS` / `budget()` in `js/gfx.js`). Each preset holds 60 FPS on the weakest GPU
+Auto gives it: Low at level 0 (phones, Intel UHD), Balanced 4 (Iris Xe, Adreno 735), High 10 (GTX 1070,
+RTX 3050), Ultra 17 (RTX 4080). The board, rules, morsel order and next-morsel highlight are identical on every
+preset; only visuals change. Switching preset swaps materials, geometry and textures live (meshes keep their
+places). Motes scale within the preset with the hardware level (`StarHermitGpu.scaleBudget`, ≤ 2×).
+
+| Budget | Low | Balanced | High | Ultra |
+|---|---|---|---|---|
+| Shading (board, slab, table, plates, morsels, void) | Lambert | Standard | Physical (clear-coated plates, morsels and void) | Physical |
+| Void sphere segments | 20 | 32 | 48 | 64 |
+| Plate lathe segments (Table detail) | 20 | 32 | 48 | 64 |
+| Slate board / walnut table texture | 128 px | 256 px | 512 px | 512 px slate, 1024 px walnut |
+| Anisotropic filtering (GPU-capped) | 1× | 4× | 8× | 16× |
+| Motes (× Particles tier 40 / 120, then × level ≤ 2) | ½ (off by default) | 1× (40) | 1× (120) | 1½× (180) |
+| Bloom / GTAO resolution | ½ | ½ | ½ | full |
+| Pixel-ratio cap × render scale | 1 × 1 | 1.5 × 1 | 2 × 1 | 2 × 1.25 |
+
+The slate texture is downscaled from its 512 px file at load; the walnut grain is generated at the budget
+size with the same look at every size.
+
+**Benchmark** (`node tools/gfx-bench.mjs hollow-feast`, hook `tests/gfx-bench.mjs`: preset chosen through
+⚙ → Quality, then the on-screen arrow buttons cycle moves every 400 ms that never eat, so all twelve morsels,
+their plates, the void, the next-morsel light and the motes stay on screen). Measured 2026-10-18 on the AMD
+Radeon iGPU (level 2), projected to each preset's floor level:
+
+- Desktop 1920×1080: PASS low typical 0.00 / slow 0.10 ms, CPU p90 0.40 ms; PASS balanced 1.96 / 0.97 ms,
+  CPU 0.70 ms; PASS high 0.65 / 0.14 ms, CPU 0.90 ms; PASS ultra 1.60 / 1.83 ms, CPU 0.80 ms.
+- Mobile 390×844 @ DPR 3: PASS low 0.04 / 0.07 ms, CPU 0.40 ms; PASS balanced 0.00 / 0.00 ms, CPU 0.80 ms.
 
 **Typography.** System UI stack throughout. 28 px semibold title, 13 px subtitle and rule line, 15 px HUD
 labels over 20 px semibold values, so the numbers win the HUD at a glance.
@@ -461,7 +500,7 @@ short desktop 1280×600. Each pass loads the page, asserts the title, canvas and
 visible, rejects an out-of-bounds move, solves the board by **clicking the on-screen buttons** with keyboard
 arrows mixed in every fourth move, verifies the HUD after every move against the scoring formula, asserts the
 win banner appears, checks post-win inertness, restarts by button and by `R` (asserting the banner clears),
-then opens Settings through the `⚙` button and drives the Graphics section — Auto is Low on the software GPU,
+then opens Settings through the `⚙` button and drives the Graphics section — Auto is Low on the software GPU and the summary shows "Level 0",
 arrow keys go to the dialog not the void, Ultra, Low and High apply (`data-gfx-preset` / `data-gfx-post`), a
 Bloom override to Off applies and shows in the summary, the dialog fits the viewport, `Esc` closes it, the
 choices survive a reload, and choosing a preset clears the override — and samples the canvas for non-blank

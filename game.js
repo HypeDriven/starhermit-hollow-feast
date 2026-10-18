@@ -66,7 +66,21 @@
   const isMobile = (function () {
     try { return window.matchMedia('(pointer: coarse)').matches; } catch (_) { return false; }
   })();
-  const detectedPreset = gfxApi ? gfxApi.detectPreset(gpu, isMobile) : 'low';
+  // StarHermit hardware level (js/gpu-level.js): renderer string + device facts (phone/tablet, cores,
+  // memory, screen, ASTC) rated 0–20; Auto picks Low 0 / Balanced 4 / High 10 / Ultra 17 from it.
+  const gpuLevel = (function () {
+    if (!gfxApi) return 0;
+    let sys = { webgl: true, webgl2: !!renderer.capabilities.isWebGL2, mobile: isMobile };
+    try {
+      const SG = window.StarHermitGpu;
+      if (SG) {
+        const d = SG.detectSystem();
+        sys = Object.assign({}, d, { webgl: true, webgl2: sys.webgl2, mobile: isMobile || d.mobile });
+      }
+    } catch (_) { /* renderer facts only */ }
+    return gfxApi.detectLevel(gpu, sys);
+  })();
+  const detectedPreset = gfxApi ? gfxApi.presetForLevel(gpuLevel) : 'low';
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x141a26);
@@ -99,20 +113,31 @@
   const BOARD = STEP * 4 + 1.6;
   const SLAB_H = 0.45;
   const boardGeo = new THREE.PlaneGeometry(BOARD, BOARD);
-  const boardMat = new THREE.MeshStandardMaterial({ color: 0x3a5f8a, roughness: 0.88, metalness: 0.0 });
-  // Slate surface texture. The flat colour above stays as the fallback, so a
-  // missing or failed texture load leaves the board fully readable.
+
+  // Materials follow the preset's shading budget (js/gfx.js BUDGETS.material): Lambert on Low,
+  // Standard on Balanced, Physical (clear-coated plates, morsels and void) on High/Ultra. Each surface
+  // is described once; makeMat keeps only what the shading model understands.
+  const MAX_ANISO = renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1;
+  const LAMBERT_KEYS = ['color', 'map', 'emissive', 'emissiveIntensity', 'flatShading', 'side'];
+  const STANDARD_KEYS = LAMBERT_KEYS.concat(['roughness', 'metalness', 'envMapIntensity']);
+  const PHYSICAL_KEYS = STANDARD_KEYS.concat(['clearcoat', 'clearcoatRoughness']);
+  function makeMat(kind, spec) {
+    const keys = kind === 'lambert' ? LAMBERT_KEYS : kind === 'standard' ? STANDARD_KEYS : PHYSICAL_KEYS;
+    const p = {};
+    keys.forEach(function (k) { if (spec[k] !== undefined) p[k] = spec[k]; });
+    return kind === 'lambert' ? new THREE.MeshLambertMaterial(p)
+      : kind === 'standard' ? new THREE.MeshStandardMaterial(p) : new THREE.MeshPhysicalMaterial(p);
+  }
+  let matKind = null;
+  let boardMat = makeMat('standard', { color: 0x3a5f8a, roughness: 0.88, metalness: 0.0 });
+  // Slate surface texture, downscaled per preset (BUDGETS.texture). The flat colour stays as the
+  // fallback, so a missing or failed texture load leaves the board fully readable.
+  let slateImage = null;
+  let slateTex = null;
   try {
-    new THREE.TextureLoader().load(
+    new THREE.ImageLoader().load(
       'assets/board-slate.webp',
-      function (tex) {
-        tex.colorSpace = THREE.SRGBColorSpace || tex.colorSpace;
-        tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-        tex.anisotropy = renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1;
-        boardMat.map = tex;
-        boardMat.color.set(0xffffff);
-        boardMat.needsUpdate = true;
-      },
+      function (img) { slateImage = img; if (q) applyTextures(); },
       undefined,
       function () { /* keep the flat-colour board */ }
     );
@@ -149,43 +174,45 @@
   // set dressing; the plain tier is the original flat slab.
   const detailGroup = new THREE.Group();
   scene.add(detailGroup);
-  const slabMat = new THREE.MeshStandardMaterial({ color: 0x1d2736, roughness: 0.8 });
+  let slabMat = makeMat('standard', { color: 0x1d2736, roughness: 0.8 });
   const slab = new THREE.Mesh(new THREE.BoxGeometry(BOARD, SLAB_H, BOARD), slabMat);
   slab.position.y = -SLAB_H / 2 - 0.01;
   slab.castShadow = true;
   slab.receiveShadow = true;
   detailGroup.add(slab);
-  let tableMat = null;
-  try {
+  // Walnut grain, drawn at the preset's texture size (BUDGETS.texture) with the same look at any size.
+  function woodTexture(n) {
     const rnd = seeded(56);
-    const wood = noiseTexture(512, '#2b1d14', function (g, n) {
+    const u = n / 512;
+    const tex = noiseTexture(n, '#2b1d14', function (g) {
       for (let i = 0; i < 260; i++) {
         const y = rnd() * n;
         g.strokeStyle = 'rgba(' + (rnd() < 0.5 ? '12,7,4' : '70,48,32') + ',' + (0.12 + rnd() * 0.22) + ')';
-        g.lineWidth = 0.6 + rnd() * 2.2;
+        g.lineWidth = Math.max(0.5, (0.6 + rnd() * 2.2) * u);
         g.beginPath();
         g.moveTo(0, y);
-        for (let x = 0; x <= n; x += 32) g.lineTo(x, y + Math.sin(x * 0.013 + i) * 3 + (rnd() - 0.5) * 1.5);
+        for (let x = 0; x <= n; x += 32 * u) g.lineTo(x, y + (Math.sin(x / u * 0.013 + i) * 3 + (rnd() - 0.5) * 1.5) * u);
         g.stroke();
       }
     });
-    wood.repeat.set(3, 3);
-    wood.anisotropy = 4;
-    tableMat = new THREE.MeshStandardMaterial({ map: wood, roughness: 0.62, metalness: 0.0 });
-  } catch (_) {
-    tableMat = new THREE.MeshStandardMaterial({ color: 0x2b1d14, roughness: 0.62 });
+    tex.repeat.set(3, 3);
+    return tex;
   }
+  let woodTex = null;
+  let tableMat = makeMat('standard', { color: 0x2b1d14, roughness: 0.62 });
   const table = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), tableMat);
   table.rotation.x = -Math.PI / 2;
   table.position.y = -SLAB_H - 0.01;
   table.receiveShadow = true;
   detailGroup.add(table);
   // Shallow dish: a lathe profile with a flat well and a raised, rolled rim.
-  const plateGeo = new THREE.LatheGeometry([
+  // Segment counts follow the preset (BUDGETS.plateSeg / voidSeg).
+  const PLATE_PROFILE = [
     new THREE.Vector2(0, 0.02), new THREE.Vector2(0.78, 0.02), new THREE.Vector2(0.9, 0.05),
     new THREE.Vector2(1.18, 0.14), new THREE.Vector2(1.26, 0.13), new THREE.Vector2(1.24, 0.0),
-  ], 48);
-  const plateMat = new THREE.MeshPhysicalMaterial({ color: 0x46526a, roughness: 0.3, metalness: 0.0, clearcoat: 0.8, clearcoatRoughness: 0.2, side: THREE.DoubleSide });
+  ];
+  let plateGeo = new THREE.LatheGeometry(PLATE_PROFILE, 48);
+  let plateMat = makeMat('standard', { color: 0x46526a, roughness: 0.3, metalness: 0.0, side: THREE.DoubleSide });
   const plates = [];
   for (let i = 0; i < 16; i++) {
     const p = new THREE.Mesh(plateGeo, plateMat);
@@ -198,13 +225,10 @@
 
   // Items (12) and void.
   const itemGeo = new THREE.IcosahedronGeometry(0.95);
-  const itemMat = new THREE.MeshPhysicalMaterial({
-    color: 0xff8c3a, flatShading: true, roughness: 0.58, metalness: 0.0, clearcoat: 0.0, clearcoatRoughness: 0.2,
-    envMapIntensity: 0.5,
-  });
+  const ITEM_SPEC = { color: 0xff8c3a, flatShading: true, roughness: 0.58, metalness: 0.0, clearcoat: 0.0, clearcoatRoughness: 0.2, envMapIntensity: 0.5 };
   const items = [];
   for (let i = 0; i < 12; i++) {
-    const m = new THREE.Mesh(itemGeo, itemMat.clone());
+    const m = new THREE.Mesh(itemGeo, makeMat('standard', ITEM_SPEC));
     m.position.y = 1.0;
     m.castShadow = true;
     m.rotation.set(i * 0.7, i * 1.3, 0);
@@ -214,12 +238,9 @@
 
   const VOID_R = 1.7;
   const VOID_Y = 1.6;
-  const voidGeo = new THREE.SphereGeometry(VOID_R, 48, 48);
-  const voidMat = new THREE.MeshPhysicalMaterial({
-    color: 0xf6e7b2, emissive: new THREE.Color(0xcaa64d), emissiveIntensity: 0.8,
-    roughness: 0.38, metalness: 0.0, clearcoat: 0.0, clearcoatRoughness: 0.15,
-  });
-  const voidMesh = new THREE.Mesh(voidGeo, voidMat);
+  const VOID_SPEC = { color: 0xf6e7b2, emissive: 0xcaa64d, emissiveIntensity: 0.8, roughness: 0.38, metalness: 0.0, clearcoat: 0.0, clearcoatRoughness: 0.15 };
+  let voidMat = makeMat('standard', VOID_SPEC);
+  const voidMesh = new THREE.Mesh(new THREE.SphereGeometry(VOID_R, 48, 48), voidMat);
   voidMesh.position.y = VOID_Y;
   voidMesh.castShadow = true;
   scene.add(voidMesh);
@@ -231,7 +252,7 @@
   scene.add(nextLight);
 
   // Floating motes: warm dust drifting up through the light above the table.
-  const MOTE_MAX = 120;
+  const MOTE_MAX = gfxApi ? gfxApi.MOTE_MAX : 120;
   const motePos = new Float32Array(MOTE_MAX * 3);
   const moteSeed = new Float32Array(MOTE_MAX);
   (function () {
@@ -572,9 +593,82 @@
     return out;
   }
 
+  // Preset asset variants (js/gfx.js BUDGETS): shading model, sphere/lathe segments and texture sizes.
+  // Rebuilt only when the budget changes; meshes keep their transforms, so the board is untouched.
+  let assetKey = null;
+  let texKey = null;
+  function applyTextures() {
+    const b = q && q.budget ? q.budget : { texture: 512, aniso: 4 };
+    const key = [b.texture, b.aniso, !!slateImage].join('|');
+    if (key === texKey) return;
+    texKey = key;
+    if (woodTex) woodTex.dispose();
+    if (slateTex) slateTex.dispose();
+    woodTex = null; slateTex = null;
+    try {
+      woodTex = woodTexture(b.texture);
+      woodTex.anisotropy = Math.min(MAX_ANISO, b.aniso);
+    } catch (_) { woodTex = null; }
+    if (slateImage) {
+      try {
+        const n = Math.min(b.texture, slateImage.width || 512);
+        let src = slateImage;
+        if (n < (slateImage.width || 0)) {
+          src = document.createElement('canvas');
+          src.width = src.height = n;
+          src.getContext('2d').drawImage(slateImage, 0, 0, n, n);
+        }
+        slateTex = new THREE.Texture(src);
+        slateTex.colorSpace = THREE.SRGBColorSpace;
+        slateTex.wrapS = slateTex.wrapT = THREE.ClampToEdgeWrapping;
+        slateTex.anisotropy = Math.min(MAX_ANISO, b.aniso);
+        slateTex.needsUpdate = true;
+      } catch (_) { slateTex = null; }
+    }
+    boardMat.map = slateTex;
+    boardMat.color.set(slateTex ? 0xffffff : 0x3a5f8a);
+    boardMat.needsUpdate = true;
+    tableMat.map = woodTex;
+    tableMat.color.set(woodTex ? 0xffffff : 0x2b1d14);
+    tableMat.needsUpdate = true;
+  }
+  function applyAssets(b) {
+    const key = [b.material, b.voidSeg, b.plateSeg].join('|');
+    if (key !== assetKey) {
+      assetKey = key;
+      const kind = b.material;
+      if (kind !== matKind) {
+        matKind = kind;
+        [boardMat, slabMat, tableMat, plateMat, voidMat].forEach(function (m) { m.dispose(); });
+        boardMat = makeMat(kind, { color: 0x3a5f8a, roughness: 0.88, metalness: 0.0 });
+        slabMat = makeMat(kind, { color: 0x1d2736, roughness: 0.8 });
+        tableMat = makeMat(kind, { color: 0x2b1d14, roughness: 0.62 });
+        plateMat = makeMat(kind, { color: 0x46526a, roughness: 0.3, metalness: 0.0, clearcoat: 0.8, clearcoatRoughness: 0.2, side: THREE.DoubleSide });
+        voidMat = makeMat(kind, VOID_SPEC);
+        boardMesh.material = boardMat;
+        slab.material = slabMat;
+        table.material = tableMat;
+        plates.forEach(function (p) { p.material = plateMat; });
+        voidMesh.material = voidMat;
+        items.forEach(function (m) { m.material.dispose(); m.material = makeMat(kind, ITEM_SPEC); });
+        texKey = null; // re-attach the textures to the new materials
+      }
+      if (voidMesh.geometry.parameters.widthSegments !== b.voidSeg) {
+        voidMesh.geometry.dispose();
+        voidMesh.geometry = new THREE.SphereGeometry(VOID_R, b.voidSeg, b.voidSeg);
+      }
+      if (plateGeo.parameters.segments !== b.plateSeg) {
+        plateGeo.dispose();
+        plateGeo = new THREE.LatheGeometry(PLATE_PROFILE, b.plateSeg);
+        plates.forEach(function (p) { p.geometry = plateGeo; });
+      }
+    }
+    applyTextures();
+  }
+
   /** Apply the resolved settings to the live scene; no reload needed. */
   function applyGraphics() {
-    q = gfxApi ? gfxApi.resolve(gfxSaved, detectedPreset)
+    q = gfxApi ? gfxApi.resolve(gfxSaved, detectedPreset, gpuLevel)
       : { preset: 'low', auto: true, scale: 1, dprCap: 2, shadows: 'off', ao: 'off', bloom: 'off', grade: 'off', antialias: 'msaa', reflections: 'off', detail: 'plain', particles: 'off', adaptive: true, showFps: false, post: false };
     // MSAA without canvas MSAA (a non-MSAA boot) goes through a multisampled post target.
     q.post = !postFailed && (q.post || (q.antialias === 'msaa' && !canvasMsaa));
@@ -585,17 +679,17 @@
       dir.shadow.mapSize.set(shadowSize, shadowSize);
       if (dir.shadow.map) { dir.shadow.map.dispose(); dir.shadow.map = null; }
     }
+    applyAssets(q.budget || { material: 'standard', voidSeg: 48, plateSeg: 48, texture: 512, aniso: 4 });
     const detailed = q.detail === 'detailed';
     detailGroup.visible = detailed;
-    itemMat.clearcoat = detailed ? 0.8 : 0;
-    items.forEach(function (m) { m.material.clearcoat = detailed ? 0.8 : 0; });
-    voidMat.clearcoat = detailed ? 1 : 0;
+    items.forEach(function (m) { if (m.material.isMeshPhysicalMaterial) m.material.clearcoat = detailed ? 0.8 : 0; });
+    if (voidMat.isMeshPhysicalMaterial) voidMat.clearcoat = detailed ? 1 : 0;
     voidMat.emissiveIntensity = detailed ? 0.3 : 1.0;
     const env = q.reflections === 'on' ? environment() : null;
     scene.environment = env;
     scene.environmentIntensity = 0.4;
     hemi.intensity = env ? 0.7 : 1.05;
-    const count = gfxApi ? gfxApi.PARTICLES[q.particles] : 0;
+    const count = Math.min(MOTE_MAX, q.motes || 0);
     motes.visible = count > 0;
     moteGeo.setDrawRange(0, count);
     adaptiveScale = 1;
@@ -622,6 +716,15 @@
     if (el) el.hidden = !on;
   }
 
+  // Run a post pass at a fraction of the frame: EffectComposer.addPass/setSize hand every pass the full
+  // frame size, so the pass's own setSize applies the budget's scale (half-res bloom/GTAO below Ultra).
+  function atScale(pass, k) {
+    if (!(k < 1)) return pass;
+    const setSize = pass.setSize.bind(pass);
+    pass.setSize = function (w, h) { setSize(Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k))); };
+    return pass;
+  }
+
   function buildPost(w, h) {
     if (composer) { composer.dispose(); composer = null; }
     if (!q.post || !post) return;
@@ -641,11 +744,11 @@
         ao.blendIntensity = 0.75;
         ao.updateGtaoMaterial({ radius: 1.2, distanceExponent: 1.5, thickness: 1.5, scale: 1.0, samples: q.ao === 'high' ? 16 : 8 });
         ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: q.ao === 'high' ? 6 : 4, rings: 2, samples: q.ao === 'high' ? 16 : 8 });
-        c.addPass(ao);
+        c.addPass(atScale(ao, q.budget ? q.budget.aoRes : 1));
       }
       if (q.bloom === 'on') {
         // High threshold: only the glowing morsel, the void's sheen and motes bloom.
-        c.addPass(new post.UnrealBloomPass(new THREE.Vector2(w, h), 0.42, 0.45, 0.9));
+        c.addPass(atScale(new post.UnrealBloomPass(new THREE.Vector2(w, h), 0.42, 0.45, 0.9), q.budget ? q.budget.bloomRes : 1));
       }
       c.addPass(new post.OutputPass());
       if (q.grade === 'on') c.addPass(new post.ShaderPass(GradeShader));
@@ -732,7 +835,7 @@
       renderer.setSize(w, h, false);
       if (panelOpen()) refreshPanel();
     }
-    const key = q.post ? [q.ao, q.bloom, q.grade, q.antialias, w, h, pixelRatio].join('|') : 'none';
+    const key = q.post ? [q.ao, q.bloom, q.grade, q.antialias, q.budget && q.budget.bloomRes, q.budget && q.budget.aoRes, w, h, pixelRatio].join('|') : 'none';
     if (key !== postKey) {
       postKey = key;
       buildPost(w, h);
@@ -853,7 +956,7 @@
     gfxInputs.show_fps.checked = q.showFps;
     const px = [Math.round(size[0] * pixelRatio) || canvas.width, Math.round(size[1] * pixelRatio) || canvas.height];
     const summary = gfxApi.describe(q, px, function (k) { return tr('sum_' + k); });
-    if (summaryEl) summaryEl.textContent = (gpu || tr('gpuUnknown')) + ' · ' + summary;
+    if (summaryEl) summaryEl.textContent = (gpu || tr('gpuUnknown')) + ' · ' + tr('gfxLevel', { level: gpuLevel }) + ' · ' + summary;
     if (postNoteEl) postNoteEl.hidden = !postFailed;
   }
 

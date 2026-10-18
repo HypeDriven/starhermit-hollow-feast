@@ -205,6 +205,9 @@ async function runPass(name, viewport, hasTouch, browser) {
       if (!(await page.locator('#settings-panel').isVisible())) throw new Error('settings dialog did not open');
       const autoLabel = await page.textContent('#gfx-preset option[value="auto"]');
       if (!/Low/.test(autoLabel)) throw new Error(`auto option should name the detected tier: ${autoLabel}`);
+      // The summary names the StarHermit hardware level (software GPU = level 0).
+      const levelLine = await page.textContent('#gfx-summary');
+      if (!/Level 0/.test(levelLine)) throw new Error(`summary lacks the hardware level: ${levelLine}`);
       // Arrow keys belong to the dialog while it is open, not to the void.
       await page.keyboard.press('ArrowLeft');
       await expectHUD('0', '0 / 12');
@@ -250,8 +253,11 @@ async function runPass(name, viewport, hasTouch, browser) {
     await step('canvas is rendering (non-blank pixels)', async () => {
       // WebGL canvas has no preserveDrawingBuffer, so sample inside a rAF
       // callback that runs right after the game's own render for that frame.
+      // Phones pace Auto FPS at half the refresh rate (game-options.js), so a
+      // given callback may not render: retry over a few frames.
       const nonBlank = await page.evaluate(() => new Promise((resolve) => {
-        requestAnimationFrame(() => {
+        let tries = 0;
+        const probe = () => {
           const c = document.getElementById('game');
           const g = document.createElement('canvas');
           g.width = c.width; g.height = c.height;
@@ -259,8 +265,10 @@ async function runPass(name, viewport, hasTouch, browser) {
           const d = g.getContext('2d').getImageData(0, 0, g.width, g.height).data;
           const distinct = new Set();
           for (let i = 0; i < d.length; i += 400) distinct.add((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]);
-          resolve(distinct.size);
-        });
+          if (distinct.size >= 2 || ++tries >= 8) resolve(distinct.size);
+          else requestAnimationFrame(probe);
+        };
+        requestAnimationFrame(probe);
       }));
       if (nonBlank < 2) throw new Error('canvas appears blank');
     });

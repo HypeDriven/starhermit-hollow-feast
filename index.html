@@ -138,14 +138,15 @@
 <script src="./js/sfx.js"></script>
 <script src="./js/starhermit-sdk.js"></script>
 <script src="./js/platform.js?v=sh-1"></script>
-<script src="./js/gfx.js?v=feast-3"></script>
+<script src="./js/gpu-level.js?v=feast-4"></script>
+<script src="./js/gfx.js?v=feast-4"></script>
 <script type="module">
   import * as THREE from 'three';
   window.THREE = THREE;
   // Post-processing and image-based lighting are optional: if the addon graph
   // fails to load, the game renders without them and the Graphics panel says so.
-  window.__hf_post = await import('./js/post.js?v=feast-3').catch(function () { return null; });
-  await import('./game.js?v=feast-3');
+  window.__hf_post = await import('./js/post.js?v=feast-4').catch(function () { return null; });
+  await import('./game.js?v=feast-4');
 </script>
 </body>
 </html>

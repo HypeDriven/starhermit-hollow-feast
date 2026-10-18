@@ -1,8 +1,8 @@
 'use strict';
 
 /*
- * Hollow Feast graphics quality model: presets, per-category overrides, GPU
- * detection and a cost summary. Pure (no DOM, no three.js), so the Graphics
+ * Hollow Feast graphics quality model: presets, per-category overrides,
+ * hardware-level detection, per-preset budgets and a cost summary. Pure (no DOM, no three.js), so the Graphics
  * panel, the renderer and the unit tests agree on what a setting means.
  * Exported to window.__hf_gfx and to CommonJS for tests.
  */
@@ -35,21 +35,76 @@
 
   function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
 
-  /** Best preset for this GPU, from the unmasked renderer string when exposed. */
-  function detectPreset(gpu, mobile) {
-    const g = String(gpu || '').toLowerCase();
-    let p = 'balanced';
-    if (/swiftshader|llvmpipe|softpipe|software|basic render|microsoft basic/.test(g)) p = 'low';
-    else if (/nvidia|geforce|rtx|gtx|quadro|radeon rx|radeon pro|amd radeon(?!.*graphics)|apple m\d/.test(g)) p = 'high';
-    if (mobile && p === 'high') p = 'balanced';
-    return p;
+  // StarHermit hardware level (0–20, js/gpu-level.js → window.StarHermitGpu) at which Auto starts
+  // choosing each preset. 0 = Galaxy S20 / Intel UHD or weaker (every software renderer), 20 = RTX 5090;
+  // phones, tablets and ≤ 4 GB machines are capped at level 9 (Balanced).
+  const LEVELS = { low: 0, balanced: 4, high: 10, ultra: 17 };
+
+  /*
+   * Per-preset asset and effect budgets, each tuned to hold 60 FPS on the weakest GPU Auto gives the
+   * preset (Low: level 0 phones / Intel UHD; Balanced: level 4 Iris Xe / Adreno 735; High: level 10
+   * GTX 1070 / RTX 3050; Ultra: level 17 RTX 4080), measured with tests/gfx-bench.mjs. Gameplay is
+   * identical on every preset; only visuals change.
+   *   material   board, slab, table, plates, morsels and void: 'lambert' (Low) | 'standard' (Balanced) |
+   *              'physical' (clear-coated plates, morsels and void; High/Ultra)
+   *   voidSeg    void sphere width/height segments
+   *   plateSeg   radial segments of the lathed plates (Table detail on)
+   *   texture    slate board and walnut table texture size in px (slate downscaled from its 512 px file,
+   *              walnut grain generated at this size)
+   *   aniso      texture anisotropic filtering (capped by the GPU)
+   *   motes      multiplies the floating motes of the Particles tier (40 low / 120 high), then scaled by
+   *              the hardware level within the preset (≤ 2×)
+   *   bloomRes / aoRes  bloom and GTAO resolution as a fraction of the frame
+   */
+  const BUDGETS = {
+    low: { material: 'lambert', voidSeg: 20, plateSeg: 20, texture: 128, aniso: 1, motes: 0.5, bloomRes: 0.5, aoRes: 0.5 },
+    balanced: { material: 'standard', voidSeg: 32, plateSeg: 32, texture: 256, aniso: 4, motes: 1, bloomRes: 0.5, aoRes: 0.5 },
+    high: { material: 'physical', voidSeg: 48, plateSeg: 48, texture: 512, aniso: 8, motes: 1, bloomRes: 0.5, aoRes: 0.5 },
+    ultra: { material: 'physical', voidSeg: 64, plateSeg: 64, texture: 1024, aniso: 16, motes: 1.5, bloomRes: 1, aoRes: 1 },
+  };
+  /** Largest mote count any preset/level can ask for (120 × 1.5 × 2). */
+  const MOTE_MAX = 360;
+
+  function gpuApi() {
+    if (root && root.StarHermitGpu) return root.StarHermitGpu;
+    try { return typeof require === 'function' ? require('./gpu-level.js') : null; } catch (_) { return null; }
+  }
+
+  /** Hardware level 0–20 for an unmasked renderer string plus StarHermitGpu.detectSystem() facts. */
+  function detectLevel(gpu, system) {
+    const G = gpuApi();
+    if (!G) return LEVELS.balanced;
+    return G.detectLevel(Object.assign({ webgl: true, webgl2: true }, system || {}, { gpu: String(gpu || '') }));
+  }
+
+  /** Auto preset for a hardware level: Low 0, Balanced 4, High 10, Ultra 17. */
+  function presetForLevel(level) {
+    const G = gpuApi();
+    if (G) return G.presetForLevel(level, LEVELS);
+    return PRESETS.filter(function (p) { return LEVELS[p] <= level; }).pop() || 'low';
+  }
+
+  /** Best preset for this GPU; phones and tablets are capped at Balanced by the hardware level. */
+  function detectPreset(gpu, system) {
+    return presetForLevel(detectLevel(gpu, system));
+  }
+
+  /** A preset's concrete budget for a hardware level (motes scale within the preset, ≤ 2×). */
+  function budget(preset, level) {
+    const b = Object.assign({}, BUDGETS[preset] || BUDGETS.balanced);
+    const floor = LEVELS[preset] || 0;
+    const G = gpuApi();
+    const k = G ? Math.min(2, G.scaleBudget(1, isFinite(level) ? level : floor, floor)) : 1;
+    b.motes = Math.round(b.motes * k * 100) / 100;
+    return b;
   }
 
   /**
    * Resolve saved settings into concrete tiers.
-   * saved: { preset: 'auto'|preset, render_scale, adaptive, show_fps, <category>: 'preset'|tier }.
+   * saved: { preset: 'auto'|preset, render_scale, adaptive, show_fps, <category>: 'preset'|tier };
+   * level: the hardware level (a chosen preset without one uses its floor level).
    */
-  function resolve(saved, detected) {
+  function resolve(saved, detected, level) {
     const s = saved && typeof saved === 'object' ? saved : {};
     const auto = PRESETS.indexOf(s.preset) < 0;
     const preset = auto ? (PRESETS.indexOf(detected) >= 0 ? detected : 'balanced') : s.preset;
@@ -59,6 +114,9 @@
     Object.keys(CATEGORIES).forEach(function (cat) {
       out[cat] = CATEGORIES[cat].indexOf(s[cat]) >= 0 ? s[cat] : row[cat];
     });
+    out.level = isFinite(level) && level !== null ? Number(level) : LEVELS[preset];
+    out.budget = budget(preset, out.level);
+    out.motes = Math.min(MOTE_MAX, Math.round(PARTICLES[out.particles] * out.budget.motes));
     out.adaptive = s.adaptive !== false;
     out.showFps = !!s.show_fps;
     // The post chain runs only when an effect needs it; otherwise the canvas's own MSAA is used.
@@ -95,7 +153,7 @@
       r.ao === 'off' ? null : r.ao === 'high' ? L('aoHigh') : L('ao'),
       r.bloom === 'on' ? L('bloom') : null,
       r.reflections === 'on' ? L('reflections') : null,
-      PARTICLES[r.particles] ? PARTICLES[r.particles] + ' ' + L('particles') : null,
+      r.motes ? r.motes + ' ' + L('particles') : null,
       r.antialias === 'off' ? L('noAA') : r.antialias.toUpperCase(),
       pixels ? pixels[0] + '×' + pixels[1] + ' px' : null,
     ];
@@ -104,7 +162,8 @@
 
   const api = {
     PRESETS: PRESETS, CATEGORIES: CATEGORIES, SHADOW_MAP: SHADOW_MAP, PARTICLES: PARTICLES,
-    detectPreset: detectPreset, resolve: resolve, presetTier: presetTier, choosePreset: choosePreset, describe: describe,
+    LEVELS: LEVELS, BUDGETS: BUDGETS, MOTE_MAX: MOTE_MAX,
+    detectLevel: detectLevel, presetForLevel: presetForLevel, budget: budget, detectPreset: detectPreset, resolve: resolve, presetTier: presetTier, choosePreset: choosePreset, describe: describe,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.__hf_gfx = api;
