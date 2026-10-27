@@ -1,0 +1,44 @@
+# A full board by keys: a refusal off the board (Up from the start), the
+# twelve courses in order, the win banner and the best line, then R restarts
+# a fresh board.
+until 300 Hollow Feast
+frames 150
+expect 0 / 12
+save start
+key ArrowUp 1
+frames 5
+key ArrowLeft 1
+frames 5
+key ArrowLeft 1
+frames 5
+key ArrowLeft 1
+frames 5
+expect 3 / 12
+save three
+key ArrowDown 1
+frames 5
+key ArrowRight 1
+frames 5
+key ArrowRight 1
+frames 5
+key ArrowDown 1
+frames 5
+key ArrowLeft 1
+frames 5
+key ArrowLeft 1
+frames 5
+key ArrowDown 1
+frames 5
+key ArrowRight 1
+frames 5
+key ArrowRight 1
+frames 5
+until 60 Feast complete!
+expect 12 / 12
+expect 450 · 1R · 13T
+frames 30
+save won
+key KeyR 1
+frames 10
+expect 0 / 12
+save restarted

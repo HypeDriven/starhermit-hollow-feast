@@ -1,0 +1,20 @@
+# The Settings dialog from the control bar: the account section (signed out:
+# Sign in with StarHermit), More options; the dialog's ✕ closes it and the
+# board still plays by the buttons (Move left eats morsel 1).
+until 300 Hollow Feast
+frames 150
+click =Settings
+until 60 Sign in with StarHermit
+frames 20
+expect More options
+save settings
+click =Close settings
+frames 20
+click =Move left
+frames 10
+expect 1 / 12
+expect 10
+save moved
+click =Restart round
+frames 10
+expect 0 / 12
