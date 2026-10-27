@@ -1,0 +1,336 @@
+{
+  "styles": {
+    ".title": {
+      "margin": 0,
+      "text": {
+        "color": "#ffffff",
+        "size": 28,
+        "weight": "700",
+        "letterSpacing": 0.5
+      }
+    },
+    ".title-short": {
+      "margin": 0,
+      "text": {
+        "color": "#ffffff",
+        "size": 20,
+        "weight": "700",
+        "letterSpacing": 0.5
+      }
+    },
+    ".subtitle": {
+      "text": {
+        "color": "#9aa7bd",
+        "size": 13
+      }
+    },
+    ".howto": {
+      "text": {
+        "color": "#b9c6dc",
+        "size": 13
+      }
+    },
+    ".howto-short": {
+      "text": {
+        "color": "#b9c6dc",
+        "size": 11
+      }
+    },
+    ".hud-label": {
+      "text": {
+        "color": "#dfe7f3",
+        "size": 15
+      }
+    },
+    ".hud-label-short": {
+      "text": {
+        "color": "#dfe7f3",
+        "size": 13
+      }
+    },
+    ".hud-value": {
+      "text": {
+        "color": "#ffffff",
+        "size": 20,
+        "weight": "600"
+      }
+    },
+    ".hud-value-short": {
+      "text": {
+        "color": "#ffffff",
+        "size": 16,
+        "weight": "600"
+      }
+    },
+    ".sync-local": {
+      "text": {
+        "color": "#9aa7bd",
+        "size": 20,
+        "weight": "600"
+      }
+    },
+    ".sync-saving": {
+      "text": {
+        "color": "#e8cf7f",
+        "size": 20,
+        "weight": "600"
+      }
+    },
+    ".sync-synced": {
+      "text": {
+        "color": "#8fd6a0",
+        "size": 20,
+        "weight": "600"
+      }
+    },
+    ".sync-bad": {
+      "text": {
+        "color": "#e38f8f",
+        "size": 20,
+        "weight": "600"
+      }
+    },
+    ".ctl": {
+      "background": "#233047",
+      "border": {
+        "width": 0
+      },
+      "radius": 9,
+      "padding": 0,
+      "margin": 0,
+      "width": 56,
+      "height": 44,
+      "text": {
+        "color": "#ffffff",
+        "size": 18,
+        "align": "center"
+      },
+      "hovered": {
+        "background": "#2d3c57"
+      },
+      "focusVisible": {
+        "focusRing": {
+          "width": 2,
+          "color": "#6ea3ff",
+          "offset": 1
+        }
+      },
+      "pressed": {
+        "background": "#1b2538"
+      }
+    },
+    ".ctl-short": {
+      "background": "#233047",
+      "border": {
+        "width": 0
+      },
+      "radius": 9,
+      "padding": 0,
+      "margin": 0,
+      "width": 50,
+      "height": 36,
+      "text": {
+        "color": "#ffffff",
+        "size": 18,
+        "align": "center"
+      },
+      "hovered": {
+        "background": "#2d3c57"
+      },
+      "focusVisible": {
+        "focusRing": {
+          "width": 2,
+          "color": "#6ea3ff",
+          "offset": 1
+        }
+      },
+      "pressed": {
+        "background": "#1b2538"
+      }
+    },
+    ".panel-card": {
+      "background": "#121826",
+      "border": {
+        "width": 1,
+        "color": "#2c3a55",
+        "style": "solid"
+      },
+      "radius": 12,
+      "shadow": {
+        "y": 12,
+        "blur": 40,
+        "color": "#0000008c"
+      },
+      "padding": {
+        "top": 14,
+        "end": 16,
+        "bottom": 16,
+        "start": 16
+      },
+      "text": {
+        "color": "#e8ecf4"
+      }
+    },
+    ".panel-title": {
+      "margin": 0,
+      "text": {
+        "color": "#ffffff",
+        "size": 20,
+        "weight": "700"
+      }
+    },
+    ".panel-head": {
+      "margin": {
+        "top": 10,
+        "end": 0,
+        "bottom": 6,
+        "start": 0
+      },
+      "text": {
+        "color": "#9aa7bd",
+        "size": 13,
+        "weight": "700",
+        "letterSpacing": 0.8
+      }
+    },
+    ".panel-note": {
+      "text": {
+        "color": "#b9c6dc",
+        "size": 13
+      }
+    },
+    ".acct-btn": {
+      "background": "#1b2438",
+      "border": {
+        "width": 1,
+        "color": "#2c3a55",
+        "style": "solid"
+      },
+      "radius": 8,
+      "padding": {
+        "top": 6,
+        "end": 12,
+        "bottom": 6,
+        "start": 12
+      },
+      "margin": {
+        "top": 6,
+        "end": 0,
+        "bottom": 0,
+        "start": 0
+      },
+      "minHeight": 40,
+      "text": {
+        "color": "#e8ecf4",
+        "size": 16
+      },
+      "hovered": {
+        "background": "#24304a"
+      },
+      "focusVisible": {
+        "focusRing": {
+          "width": 2,
+          "color": "#6ea3ff",
+          "offset": 1
+        }
+      }
+    },
+    ".toast": {
+      "background": "#121826",
+      "border": {
+        "width": 1,
+        "color": "#2c3a55",
+        "style": "solid"
+      },
+      "radius": 10,
+      "padding": {
+        "top": 10,
+        "end": 16,
+        "bottom": 10,
+        "start": 16
+      },
+      "text": {
+        "color": "#e8ecf4"
+      }
+    },
+    ".toast-text": {
+      "text": {
+        "color": "#e8ecf4",
+        "size": 16
+      }
+    },
+    ".win-banner": {
+      "background": "#0b0d12d1",
+      "border": {
+        "width": 1,
+        "color": "#f6e7b2",
+        "style": "solid"
+      },
+      "radius": 12,
+      "padding": {
+        "top": 10,
+        "end": 22,
+        "bottom": 10,
+        "start": 22
+      }
+    },
+    ".win-text": {
+      "text": {
+        "color": "#f6e7b2",
+        "size": 22,
+        "weight": "600",
+        "letterSpacing": 0.4
+      }
+    },
+    ".win-text-short": {
+      "text": {
+        "color": "#f6e7b2",
+        "size": 17,
+        "weight": "600",
+        "letterSpacing": 0.4
+      }
+    },
+    ".win-lb": {
+      "background": "#0b0d12d1",
+      "radius": 8,
+      "padding": {
+        "top": 4,
+        "end": 12,
+        "bottom": 4,
+        "start": 12
+      }
+    },
+    ".win-lb-text": {
+      "text": {
+        "color": "#f6e7b2",
+        "size": 15
+      }
+    }
+  },
+  "animations": {},
+  "tokens": {},
+  "layouts": {},
+  "dropped": [
+    {
+      "selector": ".howto",
+      "property": "line-height",
+      "value": "1.35",
+      "reason": "styles have no line height (the font's own)",
+      "line": 8
+    },
+    {
+      "selector": ".howto-short",
+      "property": "line-height",
+      "value": "1.35",
+      "reason": "styles have no line height (the font's own)",
+      "line": 9
+    },
+    {
+      "selector": ".panel-note",
+      "property": "line-height",
+      "value": "1.4",
+      "reason": "styles have no line height (the font's own)",
+      "line": 29
+    }
+  ]
+}

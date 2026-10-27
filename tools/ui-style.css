@@ -1,0 +1,39 @@
+/* Hollow Feast UI styles: the browser build's index.html <style>, rewritten
+   class-based for `starhermit css` (npm run css → assets/ui-style.json).
+   The short-landscape @media rules are layouts chosen in native/screens.ts. */
+* { box-sizing: border-box; }
+.title { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 0.5px; color: #ffffff; }
+.title-short { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; color: #ffffff; }
+.subtitle { font-size: 13px; color: #9aa7bd; }
+.howto { font-size: 13px; line-height: 1.35; color: #b9c6dc; }
+.howto-short { font-size: 11px; line-height: 1.35; color: #b9c6dc; }
+.hud-label { font-size: 15px; color: #dfe7f3; }
+.hud-label-short { font-size: 13px; color: #dfe7f3; }
+.hud-value { font-size: 20px; font-weight: 600; color: #ffffff; }
+.hud-value-short { font-size: 16px; font-weight: 600; color: #ffffff; }
+.sync-local { font-size: 20px; font-weight: 600; color: #9aa7bd; }
+.sync-saving { font-size: 20px; font-weight: 600; color: #e8cf7f; }
+.sync-synced { font-size: 20px; font-weight: 600; color: #8fd6a0; }
+.sync-bad { font-size: 20px; font-weight: 600; color: #e38f8f; }
+.ctl { width: 56px; height: 44px; border-radius: 9px; border: none; background: #233047; color: #ffffff; font-size: 18px; text-align: center; padding: 0; margin: 0; }
+.ctl:hover { background: #2d3c57; }
+.ctl:active { background: #1b2538; }
+.ctl:focus-visible { outline: 2px solid #6ea3ff; outline-offset: 1px; }
+.ctl-short { width: 50px; height: 36px; border-radius: 9px; border: none; background: #233047; color: #ffffff; font-size: 18px; text-align: center; padding: 0; margin: 0; }
+.ctl-short:hover { background: #2d3c57; }
+.ctl-short:active { background: #1b2538; }
+.ctl-short:focus-visible { outline: 2px solid #6ea3ff; outline-offset: 1px; }
+.panel-card { padding: 14px 16px 16px; border-radius: 12px; background: #121826; border: 1px solid #2c3a55; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55); color: #e8ecf4; }
+.panel-title { margin: 0; font-size: 20px; font-weight: 700; color: #ffffff; }
+.panel-head { margin: 10px 0 6px; font-size: 13px; font-weight: 700; letter-spacing: 0.8px; color: #9aa7bd; }
+.panel-note { font-size: 13px; line-height: 1.4; color: #b9c6dc; }
+.acct-btn { min-height: 40px; margin: 6px 0 0; padding: 6px 12px; border-radius: 8px; border: 1px solid #2c3a55; background: #1b2438; color: #e8ecf4; font-size: 16px; }
+.acct-btn:hover { background: #24304a; }
+.acct-btn:focus-visible { outline: 2px solid #6ea3ff; outline-offset: 1px; }
+.toast { padding: 10px 16px; border-radius: 10px; background: #121826; border: 1px solid #2c3a55; color: #e8ecf4; }
+.toast-text { font-size: 16px; color: #e8ecf4; }
+.win-banner { padding: 10px 22px; border-radius: 12px; background: rgba(11, 13, 18, 0.82); border: 1px solid #f6e7b2; }
+.win-text { font-size: 22px; font-weight: 600; letter-spacing: 0.4px; color: #f6e7b2; }
+.win-text-short { font-size: 17px; font-weight: 600; letter-spacing: 0.4px; color: #f6e7b2; }
+.win-lb { padding: 4px 12px; border-radius: 8px; background: rgba(11, 13, 18, 0.82); }
+.win-lb-text { font-size: 15px; color: #f6e7b2; }
