@@ -1,3 +1,4 @@
+.starhermit/
 node_modules/
 .local-data/
 *.log
