@@ -77,5 +77,6 @@ function countConsumed(cells) {
 function eatenCount(state) { return countConsumed(state.cells); }
 
 const api = { initialState, isLegal, applyAction };
-if (typeof window !== 'undefined') window.__hf_rules = api;
+// CommonJS for the node tests; a global for the engine client (loadClassic).
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
+else globalThis.HFRules = api;
