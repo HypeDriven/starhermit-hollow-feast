@@ -1,7 +1,9 @@
 # Hollow Feast — Game Design Document (running spec)
 
 A hungry pale void hovers over a slate banquet table and must swallow twelve glowing morsels
-**in numbered order**. This document describes the game as it ships today.
+**in numbered order**. This document describes the game as it ships today: a StarHermit engine script
+game (engine 1.17.1, host API 1.19), played natively by the StarHermit client and in browsers by the
+engine's web runtime.
 
 ---
 
@@ -13,36 +15,35 @@ A hungry pale void hovers over a slate banquet table and must swallow twelve glo
 | Genre | Single-screen ordered-collection puzzle / light action |
 | Players | 1, local, offline after first load |
 | Session length | 20–60 s per solve; a full board is twelve moves |
-| Platforms | Desktop and mobile browsers, portrait and landscape |
-| Rendering | three.js `WebGLRenderer` over a 3D scene; all text, HUD and controls are semantic HTML around the canvas |
+| Platforms | StarHermit client (native) and browsers (the engine's web runtime), desktop and phones, portrait and landscape |
+| Rendering | `starhermit:scene` (three.js-like 3D) for the table; `starhermit:ui` for the header, HUD, controls and Settings; `starhermit:draw` for the page backdrop |
 | Game index | 56 |
 
 ### File map
 
 | Path | Responsibility |
 |---|---|
-| `index.html` | Entry point: layout, palette, header, canvas box, HUD, control bar, win banner and its leaderboard line (`#win-lb`), Settings dialog (Graphics + Account), StarHermit toast, import map. Loads `ui-scale.js` and `browser-guard.js` in `<head>`, then scripts in order sh-language → i18n → rules → sfx → starhermit-sdk → platform → gpu-level → gfx → three.js → post add-ons (optional) → game. |
-| `rules.js` | Pure rules engine. `initialState`, `isLegal`, `applyAction`. No DOM, no three.js. Exported to `window.__hf_rules` and to CommonJS for tests. |
-| `game.js` | Presentation and input: scene, camera fit, mesh sync, HUD, keyboard/pointer handling, audio event dispatch, `window.__hf_debug` framing hook. |
-| `js/starhermit-sdk.js` | Shared StarHermit client (`window.StarHermit`), an unmodified copy of `tools/starhermit-sdk.js`. |
-| `js/platform.js` | `window.__hf_platform`: StarHermit adapter over the SDK — save document (localStorage + cloud slot), HUD player/sync cells, settings KV, key bindings, invite link, sign-in. |
-| `js/i18n.js` | Nine-locale string table, locale selection, `data-i18n` / `data-i18n-aria` application. |
-| `js/sfx.js` | Web Audio engine: event → clip round-robin with a procedural synth fallback. |
-| `js/three.module.min.js`, `js/three.core.min.js` | Vendored three.js r178 (import-mapped as `three`). |
-| `js/gpu-level.js` | Shared StarHermit hardware level (`window.StarHermitGpu`), an unmodified copy of `tools/gpu-level.js`. |
-| `js/gfx.js` | Pure graphics quality model: presets, per-effect tiers, hardware-level detection (`detectLevel`, `presetForLevel`, `detectPreset`), per-preset budgets (`BUDGETS`, `budget`), `resolve`, `presetTier`, `choosePreset`, `describe`. Exported to `window.__hf_gfx` and CommonJS. |
-| `js/post.js`, `js/addons/**` | Optional render add-ons: EffectComposer passes (Render, GTAO, UnrealBloom, Shader, Output, SMAA), FXAA shader and RoomEnvironment, vendored from three.js r178 `examples/jsm` (import-mapped as `three/addons/`). Loaded dynamically; a failure only disables post-processing and reflections. |
-| `assets/board-slate.webp` | Board surface texture. |
-| `assets/backdrop.webp` | Page background haze. |
-| `sfx/*.opus`, `sfx/manifest.txt` | 18 one-shot clips; `manifest.txt` is canonical, `manifest.json` drives regeneration, `manifest.md` is the readable mirror. |
-| `score-script.js` | StarHermit platform script (`server=`): range-checks a solve time sent through `StarHermit.submitScores` and posts it to the `fastest-clear` leaderboard (canonical copy in the games repo's `tools/score-script.js`). |
-| `server.js` | Static dev host. Serves the game root, refuses `tests/`, `tools/`, `node_modules/` and dotfiles. |
-| `tests/rules.test.mjs` | `npm test` — rules contract unit tests. |
-| `tests/gfx.test.mjs` | `npm test` — graphics quality model unit tests. |
-| `tests/platform.test.mjs` | `npm test` — `js/platform.js` over the SDK with a stubbed fetch and launch fragment. |
-| `tests/e2e.mjs` | `npm run test:e2e` — Playwright playthrough of the real UI at four viewports. |
-| `tests/gfx-bench.mjs` | Real-GPU benchmark hook for `tools/gfx-bench.mjs` (dev-only, never run in CI). |
-| `coverart.png`, `icon.png`, `favicon.svg`, `starhermit.txt`, `LICENSE.md` | Platform manifest and artwork. |
+| `starhermit.txt` | Manifest: name, owner, `server=score-script.js`, cover, `launch=index.html`, `engine.api=1`, `engine.entry=native/main.ts`, `engine.version=1.17.1`, `engine.minor=19`, capabilities `platform,storage,clipboard`, the five actions with keys and pad defaults. |
+| `native/main.ts` | Entry module: board state, moves and restarts (keys, pads, buttons), sounds per outcome, records, the solve timer and leaderboard posting, and the page as `starhermit:ui` (header, playfield rectangle, HUD, control bar, win banner, Settings dialog, toast). |
+| `native/render.ts` | The table on `starhermit:scene`: meshes, lights, materials per budget, textures, motes, the post effects, the camera fit and view offset into the playfield, ambient motion. |
+| `native/quality.ts` | The browser build's four presets and budgets keyed by the runtime's quality tier and level. |
+| `native/platform.ts` | Save (`starhermit:storage` saves, conflict merge, foreign-save migration), legacy settings removal, player name/avatar, invite link, the sync cell's state, fastest-clear posting through `score-script.js`. |
+| `native/audio.ts` | Clip events from `sfx/manifest.json` on the runtime's buses. |
+| `native/i18n.ts` | Locale from the runtime's interface language; `tr()`. |
+| `native/style.ts` | Theme and the converted style sheet (`assets/ui-style.json`). |
+| `native/classic.ts` | Loads `rules.js`, `js/progress.js`, `js/strings.js` as classic scripts; their TypeScript shapes. |
+| `rules.js` | Pure rules engine (`initialState`, `isLegal`, `applyAction`), CommonJS for node and `globalThis.HFRules` for the engine. |
+| `js/progress.js` | Pure save document and round bookkeeping: sanitize, merge, the browser build's save, the fresh board, the unfinished board, wins and the best line. |
+| `js/strings.js` | The nine locales' string tables and `t()`. |
+| `assets/board-slate.webp`, `assets/backdrop.webp` | Board texture; page backdrop. |
+| `assets/ui-style.json` | `starhermit css` output of `tools/ui-style.css`. |
+| `sfx/*.opus`, `sfx/manifest.*` | 18 one-shot clips; `manifest.txt` canonical, `manifest.json` read by the game, `manifest.md` mirror. |
+| `score-script.js` | StarHermit platform script (`server=`): range-checks a solve time and posts it to the `fastest-clear` board (unchanged). |
+| `index.html`, `starhermit-files.json` | The web loader and file index written by `npm run package` (`starhermit package --web .`); never edited by hand. |
+| `server.js` | Static dev host (left out of the package). |
+| `tests/` | Unit tests, `native.mjs` (engine checks and play scripts), `native/*.play`. |
+| `tools/` | `package-web.mjs`, `css.mjs` + `ui-style.css`, `browser-play.mjs`. |
+| `coverart.png`, `cover.jpg`, `icon.png`, `favicon.*`, `LICENSE.md` | Artwork and licence. |
 
 ---
 
@@ -54,12 +55,12 @@ A hungry pale void hovers over a slate banquet table and must swallow twelve glo
 2. **A refusal is information, not punishment.** An illegal move costs nothing but a tick and a counter.
    The board never resets on a mistake, and the two refusal kinds — off the edge, and out of order — sound
    different so the player learns the rule by ear. This rules out life counters and instant-loss states.
-3. **The board is the hero.** The camera solves its own distance and target every frame the layout changes
-   so the whole slab and every cell the void can occupy stay inside the canvas at any aspect ratio.
+3. **The board is the hero.** The camera solves its own distance and target every time the layout changes
+   so the whole slab and every cell the void can occupy stay inside the playfield at any aspect ratio.
    This rules in a fixed diorama camera; it rules out player-controlled orbit, zoom and any framing where
    the far row can be cut off.
 4. **Everything readable with the effects off.** Position, ownership, the next target and the score are all
-   carried by geometry, scale and HTML text — the emissive glow, the win-banner pop and the backdrop haze are
+   carried by geometry, scale and HUD text — the emissive glow, the win-banner pop and the backdrop haze are
    all additive. Reduced-motion and a failed texture load both leave a fully playable board.
 5. **One board, twelve moves, no ceremony.** The game starts in the played state: no menu, no mode select,
    no splash. A returning player is playing in zero deliberate actions.
@@ -71,7 +72,7 @@ A hungry pale void hovers over a slate banquet table and must swallow twelve glo
 **Target player.** Someone with one spare minute who wants a small, complete, satisfying thing. No prior
 genre knowledge is assumed.
 
-**First 60 seconds.** The page loads directly into a played board. The header carries a permanent one-line
+**First 60 seconds.** The game starts directly on a played board. The header carries a permanent one-line
 rule: *"Eat the glowing morsels in numbered order. Arrow keys, WASD, or the buttons below. R restarts."*
 The only glowing, oversized morsel on the board is morsel 1, sitting immediately left of the void, so the
 first useful action is visible before the sentence is finished. Pressing left eats it: gulp, score 10,
@@ -89,14 +90,14 @@ whole table, and the pleasure is in making it wait its turn.
 
 ## 4. Core loop and rules contract
 
-All rules live in `rules.js`; `game.js` never decides legality or score.
+All rules live in `rules.js`; the client (`native/main.ts`) never decides legality or score.
 
 ### Board and entities
 
 - A 4×4 grid, indexed `cells[y * 4 + x]`, `x` and `y` in `0..3`.
 - Each cell is `{ kind, order }`. `kind: 'item'` is an uneaten morsel; `kind: null` with a non-null `order`
   is a cell whose morsel has been eaten; `kind: null, order: null` is a cell that never held one.
-- Twelve morsels occupy columns `x = 0..2` in a snake, laid out by `ORDER` in `game.js::freshState`:
+- Twelve morsels occupy columns `x = 0..2` in a snake, laid out by `ORDER` in `js/progress.js` (`freshState`):
 
   | | x=0 | x=1 | x=2 | x=3 |
   |---|---|---|---|---|
@@ -107,7 +108,7 @@ All rules live in `rules.js`; `game.js` never decides legality or score.
 
 - The void starts at `(3, 0)`: on the empty corridor column, adjacent to morsel 1.
 - State: `{ cells, voidPos, score, invalidActions, tick, won }` (`rules.js::initialState`). Score, tick and
-  counters are integers; formatting happens only in `game.js::updateHUD`.
+  counters are integers; formatting happens only in the HUD (`native/main.ts`).
 
 ### Legal actions
 
@@ -133,9 +134,9 @@ actions are counted separately as the cleanliness metric of a run.
 ### Terminal state and tie-breaks
 
 `won` is sticky: after the twelfth morsel every further input is refused and only increments `tick` and
-`invalidActions` (asserted by `tests/rules.test.mjs` and by the rules prelude of `tests/e2e.mjs`).
+`invalidActions` (asserted by `tests/rules.test.mjs`).
 Two runs are compared by, in order: completion (`won`), then fewer `invalidActions`, then lower `tick`.
-Since every board is the same board, that ordering is fully determined by the input log. `game.js::onWon`
+Since every board is the same board, that ordering is fully determined by the input log. `js/progress.js::recordWin`
 applies exactly this ordering when replacing the persisted best line (score, then refusals, then ticks).
 
 ### RNG, undo, hints
@@ -150,7 +151,7 @@ There is no undo and no hint button — the "next" glow *is* the hint, always on
 
 The game ships **one mode**: a single fixed board, played immediately, restartable. There is no mode select,
 no difficulty setting, no daily seed and no unlock track. Mid-round progress and personal records do persist
-between loads via the platform save document (§12), but the mode question is deliberate at the current scope:
+between loads via the game's save (§12), but the mode question is deliberate at the current scope:
 the board is a twelve-move exercise whose whole content is its order, and a mode picker would cost more of
 the player's first ten seconds than it returns. See "Design intent not yet implemented" for the
 seeded-layout hook that already exists in the rules.
@@ -161,421 +162,248 @@ seeded-layout hook that already exists in the rules.
 
 | Input | Action | Feedback |
 |---|---|---|
-| `←` `→` `↑` `↓` | Step the void | Void mesh moves; movement whoosh, or a refusal cue |
-| `A` `D` `W` `S` | Step the void | Identical to the arrows |
-| `R` | Restart the round | Fresh board, reset HUD, restart sweep |
-| On-screen `←` `↑` `↓` `→` buttons (tap or click) | Step the void | UI tap layered under the move/refusal cue |
-| On-screen `↻` button | Restart the round | Restart sweep |
-| On-screen `⚙` button | Open the Settings dialog | UI tap; focus moves into the dialog |
-| `Esc` (dialog open) | Close the Settings dialog | Focus returns to `⚙` |
+| `←` `→` `↑` `↓`, `A` `D` `W` `S` | Step the void (actions `left` `right` `up` `down`) | Void moves; movement whoosh, or a refusal cue |
+| `R` | Restart the round (action `restart`) | Fresh board, reset HUD, restart sweep |
+| Gamepad D-pad or left stick | Step the void | As the keys |
+| Gamepad North (Y) | Restart | As `R` |
+| Control bar `←` `↑` `↓` `→` (click, tap, Tab + Enter, pad South) | Step the void | UI tap layered under the move/refusal cue |
+| Control bar `↻` | Restart | Restart sweep |
+| Control bar `⚙` | Open Settings | UI tap; focus moves into the dialog |
+| `Esc` / Back / `✕` (Settings open) | Close Settings | Focus returns to `⚙` |
 
-- Modifier chords are ignored: `game.js` returns early when `ctrlKey`, `metaKey` or `altKey` is held, so
-  browser shortcuts still work.
-- Handled keys call `preventDefault`, so arrow keys never scroll the page.
-- The canvas sets `touch-action: none`, so a tap or drag on the board never pans or zooms the page. The
-  canvas itself is not an input surface: there is no raycast picking and no drag gesture — every action is
-  a discrete button or key, which keeps the touch and keyboard paths identical.
-- There is no input lock. Resolution is synchronous and instantaneous, so inputs can never be dropped and
-  no debounce is needed; a double-tap is simply two steps, the second of which is usually refused.
-- Every input produces a sound *and* a visible change (a move, or a HUD/board state that provably did not
-  change plus a distinct refusal cue).
-- While the Settings dialog is open it owns the keyboard: arrows and WASD drive its controls, never the
-  void, `Tab` cycles inside it and `Esc` closes it; a click on the dimmed backdrop also closes it.
-- Buttons are 56×44 CSS px (50×36 under 520 px of height), with a visible `:focus-visible` outline in
-  `#6ea3ff` and a hover brightness lift.
+- Players rebind keys and pad buttons in the runtime's Options; when any key differs from the defaults,
+  the how-to line appends the effective keys (`(← A/… · → … · ↻ R)`).
+- The game's arrow handling clears UI focus, so the arrows always step the void (they never wander between
+  the control buttons). While Settings is open, game actions are ignored.
+- The board itself is not an input surface: every action is a discrete key, pad button or button.
+- No input lock: resolution is synchronous; a double-tap is two steps.
+- Buttons are 56×44 logical px (50×36 when the window is at most 520 logical px tall), 5 px apart, with a
+  2 px `#6ea3ff` focus ring.
 
 ---
 
 ## 7. Screens and UI flow
 
-There is one screen plus a Settings dialog. The state machine is `loading → playing ⇄ won`, with
-`won → playing` on restart; the dialog can open over either state and pauses nothing (there is no timer):
+One screen plus a Settings dialog. The state machine is `playing ⇄ won`, with `won → playing` on restart;
+Settings opens over either state and pauses nothing (there is no clock on screen).
 
-- **loading** — HTML paints immediately with the header, HUD at `0` / `0 / 12`, and controls; the canvas
-  fills in once the module graph resolves. If WebGL is unavailable, `game.js` replaces the canvas with a
-  `role="alert"` paragraph explaining that the browser cannot render the board, and the page stays intact.
-- **playing** — HUD live, board interactive.
-- **won** — `#win-banner` ("Feast complete!") appears centred over the board with `role="status"`, all
-  further steps are refused, and restart is the only meaningful action. The banner is `pointer-events: none`
-  so it can never swallow a click.
-- **settings** — `#settings-panel` (`role="dialog"`, `aria-modal`), opened by the `⚙` button at the end of the
-  control bar. It holds the **Graphics** section (§8). The card scrolls inside itself, so it fits portrait and
-  landscape phones without cutting anything off.
+- **playing** — the page: header (title "Hollow Feast", subtitle, how-to line), the playfield (the 3D
+  table), the HUD row (Score, Eaten `n / 12`, Player, Best `score · refusals R · ticks T`, Sync) and the
+  control bar (← ↑ ↓ → ↻ ⚙). An unfinished board from the save resumes at start.
+- **won** — "Feast complete!" on a gold-edged plate over the playfield's centre (announced assertively);
+  signed in, a line under it shows the solve time and the leaderboard status. Further steps are refused.
+- **Settings** — a modal dialog: the title and ✕; **Account** (signed out: *Sign in with StarHermit*;
+  signed in: *Invite a friend*, copying the invite link with a toast); **More options** with a note that
+  sound, graphics, language and key bindings are in the StarHermit options, and a button opening the
+  runtime's Options menu.
+- **Toast** — bottom centre for 3.5 s (invite copied / copy failed / signed out).
 
-Layout is a single vertical flex column: header (title, subtitle, rule line) → `#game-wrap` → HUD row →
-control bar (four arrows, restart, settings). `#game-wrap` is the only flexible row (`flex: 1 1 auto`, `min-height: 140px`), so the HUD and
-the controls can never be pushed below the fold; the canvas takes what is left, clamped to an aspect ratio
-between 1.0 and 1.6, and the camera refits. Under 520 px of viewport height the subtitle is dropped and the
-title, rule line, HUD and buttons all step down a size. Nothing on this page may ever be cut off: the
-title, the rule line, both HUD cells, all six buttons, the whole slab and the void at any cell must sit
-inside the viewport, and the document must not scroll in either axis — `tests/e2e.mjs` asserts exactly this
-after every single move at four viewports.
-Above a 1600×1000 viewport `ui-scale.js` sets `--ui-scale` (`min(w/1600, h/1000)`, capped at 2.5) and `body` is
-CSS-`zoom`ed by it (its `100dvh` height and the toast's `100vw` cap are divided by it), so the page at 3840×2160
-is the ~1778×1000 layout magnified; the canvas multiplies its pixel ratio by `UIScale.value` to stay sharp.
+Layout is one full-window column: header → playfield → HUD → controls. The playfield takes the room the
+others leave (8 px below the header, 16 px side margins, at most 1200 px wide), its aspect held between 1.0
+and 1.6 and centred, as the browser build's `#game-wrap`; the camera is refitted to it. HUD cells wrap into
+rows when the window is narrow. When the window is at most 520 logical px tall the subtitle is dropped and
+the title, how-to line, HUD and buttons step down a size. The player's interface size, text size and high
+contrast (runtime Options) scale everything; there is no separate large-screen zoom.
 
 ---
 
 ## 8. Art direction
 
-**Palette** (as authored in `index.html` and `game.js`):
+**Palette:**
 
 | Role | Hex |
 |---|---|
-| Page ground | `#0b0d12` |
-| Canvas/scene clear | `#141a26` |
+| Page ground | `#0b0d12` under `assets/backdrop.webp` (cover-fit, painted around the playfield) |
+| Scene clear | `#141a26` |
 | Board slate tint | `#3a5f8a` (replaced by `assets/board-slate.webp` when it loads) |
 | Morsel | `#ff8c3a`, flat-shaded, emissive `#ff8c3a` at 0.85 when next (1.35, pulsing, with bloom on) |
 | The void | `#f6e7b2` with `#caa64d` emissive |
-| Body text | `#e8ecf4`; secondary `#9aa7bd`; rule line `#b9c6dc` |
-| Controls | `#233047`; focus ring `#6ea3ff` |
+| Text | `#e8ecf4`; HUD values `#ffffff`; secondary `#9aa7bd`; how-to `#b9c6dc`; banner `#f6e7b2` |
+| Controls | `#233047`; focus ring `#6ea3ff`; Settings panel `#121826` edged `#2c3a55` |
 
-**Shape language.** Two shapes only, and they read as predator and prey: a smooth sphere for the void (20–64 segments by preset),
-flat-shaded icosahedra for the morsels. Flat shading gives the food facets that catch the directional light,
-so twelve identical objects still read individually against the slab.
+**Shape language.** A smooth sphere for the void (20–64 segments by budget), flat-shaded icosahedra for
+the morsels.
 
-**Composition.** Fixed three-quarter diorama camera along `(0, 16.5, 15)`, solved by `game.js::fitCamera` to
-fill 92 % of the tighter viewport axis. The hero of the screen is the slab; the void is the only bright
-object on it, and the single glowing morsel is the only competing highlight.
+**Composition.** Fixed three-quarter diorama camera along `(0, 16.5, 15)`, fov 50, solved by
+`render.ts::fitCamera` (projecting the fit points by hand) to fill 92 % of the playfield's tighter axis;
+the camera's view offset places that picture in the playfield rectangle of the window.
 
-**Lighting.** ACES filmic tone mapping into sRGB output. A cool-sky / warm-table hemisphere fill, a low flat
-ambient and one warm directional key from `(-4, 10, 8)` — enough contrast for facets, never enough to blow out
-the pale void. The key's orthographic shadow box is fitted in light space to every playfield fit point (slab
-and the void at any cell), so the whole shadow map lands on the board.
+**Lighting.** ACES filmic tone mapping at exposure 0.95. A cool-sky / warm-table hemisphere fill, a low
+flat ambient and one warm directional key from `(-4, 10, 8)`, at the browser build's three.js intensities
+÷ π. The key's shadows cover the camera distance plus the board along the view.
 
-**Graphics.** Every effect is additive over the original look; the Low preset renders the original flat slab
-with no post chain at 1× pixel ratio. Optional effects: PCF soft shadows from the key (512²–2048²);
-image-based reflections from a PMREM-filtered `RoomEnvironment` on physical materials (clearcoated morsels,
-plates and void); a "detailed" table (a thick slate slab, a walnut table top with procedural grain, and
-lathed ceramic plates under the twelve courses that stay behind as the eaten record); a warm point light
-that pools under the next morsel; drifting warm motes (additive points, counted per preset — see the budget table); GTAO contact darkening;
-UnrealBloom at threshold 0.9 so only the next morsel's glow and the void's sheen halo (the next-morsel
-emissive rises to 1.35 when bloom is on); a colour grade (S-curve, +10 % saturation, cool shadows / warm
-highlights) with vignette; and FXAA/SMAA/MSAA anti-aliasing. The post chain is RenderPass → GTAO → bloom →
-OutputPass → grade → SMAA/FXAA on a half-float target (4× multisampled for MSAA) and runs only when an effect
-needs it. Settings live in the Settings dialog's **Graphics** section: Quality (Auto — chosen from the
-StarHermit hardware level, see below — then Low, Balanced, High, Ultra); a render scale slider (50–200 % of the
-preset's; the device pixel ratio is capped at 1 / 1.5 / 2 / 2 per preset); one select per effect — Shadows,
-Ambient occlusion, Bloom, Colour grade, Anti-aliasing, Reflections, Table detail, Floating motes — defaulting
-to "From preset (…)"; Adaptive resolution (on by default: over ~90-frame windows the scale steps down 0.1 to
-a 0.6 floor above 26 ms and back up 0.05 below 14 ms); Show frame rate (off by default; a top-left readout
-that never takes pointer events); and a summary line "GPU · Level N · cost summary · W×H px" ("Level" localized in the nine locales). Choosing a preset clears
-the per-effect overrides. Changes apply live and persist in `localStorage['hf.gfx.v1']`. The canvas carries
-`data-gfx-preset`, `data-gfx-post` and one `data-gfx-<effect>` attribute per effect. Canvas MSAA is fixed when
-the context is created, so a boot with a non-MSAA choice renders a live switch to MSAA through the
-multisampled post target, and a live switch to "Off" from a MSAA boot keeps the canvas's own smoothing until
-the next load. If the add-ons fail to load or the chain throws, the board renders directly and the panel says
-post-processing is unavailable.
+**Graphics levels.** The runtime's Options choose the graphics level (Auto by default); the game maps the
+level's quality tier to the browser build's presets, each tuned to hold 60 FPS on the weakest GPU its Auto
+gave the preset:
 
-**Hardware-level detection.** `js/gpu-level.js` (shared StarHermit copy, `window.StarHermitGpu`, never edited
-here) rates the WebGL renderer string plus device facts (`detectSystem()`: phone/tablet, cores, memory,
-screen, ASTC) on the StarHermit hardware level 0–20 (0 = Galaxy S20 / Intel UHD or weaker and every software
-renderer, 20 = RTX 5090, each level ≈ 1.23×; laptop parts two levels below the desktop part; phones, tablets
-and ≤ 4 GB machines capped at 9). `js/gfx.js` maps it with `presetForLevel(level, { low: 0, balanced: 4,
-high: 10, ultra: 17 })`, so Auto picks Ultra on strong GPUs; adaptive resolution still steps down when frames
-are slow. Headless SwiftShader is level 0 → Low. Phones and tablets pace Auto FPS at half the display refresh
-rate ("Auto (half refresh rate)") and start at 16 simultaneous sounds (shared `game-options.js`).
-
-**Per-preset budgets** (`BUDGETS` / `budget()` in `js/gfx.js`). Each preset holds 60 FPS on the weakest GPU
-Auto gives it: Low at level 0 (phones, Intel UHD), Balanced 4 (Iris Xe, Adreno 735), High 10 (GTX 1070,
-RTX 3050), Ultra 17 (RTX 4080). The board, rules, morsel order and next-morsel highlight are identical on every
-preset; only visuals change. Switching preset swaps materials, geometry and textures live (meshes keep their
-places). Motes scale within the preset with the hardware level (`StarHermitGpu.scaleBudget`, ≤ 2×).
-
-| Budget | Low | Balanced | High | Ultra |
+| | Low | Balanced | High | Ultra |
 |---|---|---|---|---|
-| Shading (board, slab, table, plates, morsels, void) | Lambert | Standard | Physical (clear-coated plates, morsels and void) | Physical |
-| Void sphere segments | 20 | 32 | 48 | 64 |
-| Plate lathe segments (Table detail) | 20 | 32 | 48 | 64 |
-| Slate board / walnut table texture | 128 px | 256 px | 512 px | 512 px slate, 1024 px walnut |
-| Anisotropic filtering (GPU-capped) | 1× | 4× | 8× | 16× |
-| Motes (× Particles tier 40 / 120, then × level ≤ 2) | ½ (off by default) | 1× (40) | 1× (120) | 1½× (180) |
-| Bloom / GTAO resolution | ½ | ½ | ½ | full |
-| Pixel-ratio cap × render scale | 1 × 1 | 1.5 × 1 | 2 × 1 | 2 × 1.25 |
+| Shading | Lambert | Standard | Physical (clear-coated plates, morsels, void) | Physical |
+| Shadows (requested map; the level caps it) | off | 512 | 1024 | 2048 |
+| Ambient occlusion | off | off | on (8 samples) | high (16) |
+| Bloom (strength 0.42, radius 0.45, threshold 0.9) | off | on | on | on |
+| Colour grade + vignette | off | on | on | on |
+| Anti-aliasing | MSAA | FXAA | SMAA | MSAA |
+| Reflections (RoomEnvironment, intensity 0.4) | off | on | on | on |
+| Table detail (slab, walnut top, plates, next-course light) | plain | detailed | detailed | detailed |
+| Motes (× level within the tier, ≤ 2×) | 0 | 40 | 120 | 180 |
+| Void / plate segments | 20 | 32 | 48 | 64 |
+| Walnut texture / anisotropy | 128 px / 1× | 256 / 4× | 512 / 8× | 1024 / 16× |
+| Bloom / AO resolution | ½ | ½ | ½ | full |
 
-The slate texture is downscaled from its 512 px file at load; the walnut grain is generated at the budget
-size with the same look at every size.
+Render scale, pixel-ratio cap, adaptive resolution, the frame-rate limit and readout are the runtime's.
+The grade is the browser build's shader as renderer settings: display-space S-curve (contrast 0.11),
+saturation 1.1, cool shadows / warm highlights over 0.15–0.8, vignette 0.28 (0.32–0.8).
 
-**Benchmark** (`node tools/gfx-bench.mjs hollow-feast`, hook `tests/gfx-bench.mjs`: preset chosen through
-⚙ → Quality, then the on-screen arrow buttons cycle moves every 400 ms that never eat, so all twelve morsels,
-their plates, the void, the next-morsel light and the motes stay on screen). Measured 2026-10-18 on the AMD
-Radeon iGPU (level 2), projected to each preset's floor level:
+**Typography.** System UI faces. 28 px bold title, 13 px subtitle and how-to line, 15 px HUD labels over
+20 px semibold values.
 
-- Desktop 1920×1080: PASS low typical 0.00 / slow 0.10 ms, CPU p90 0.40 ms; PASS balanced 1.96 / 0.97 ms,
-  CPU 0.70 ms; PASS high 0.65 / 0.14 ms, CPU 0.90 ms; PASS ultra 1.60 / 1.83 ms, CPU 0.80 ms.
-- Mobile 390×844 @ DPR 3: PASS low 0.04 / 0.07 ms, CPU 0.40 ms; PASS balanced 0.00 / 0.00 ms, CPU 0.80 ms.
-
-**Typography.** System UI stack throughout. 28 px semibold title, 13 px subtitle and rule line, 15 px HUD
-labels over 20 px semibold values, so the numbers win the HUD at a glance.
-
-**Motion.** State changes are instantaneous snaps, not tweens, so the board never lies about where the void
-is. Ambient motion is decorative only: the void idles with a slow ±0.09 bob, the next morsel turns and its
-glow and light pulse, and the motes drift. All of it stops under `prefers-reduced-motion: reduce` (checked
-live). The 220 ms win-banner pop is wrapped in `@media (prefers-reduced-motion: no-preference)`; with reduced
-motion the banner simply appears.
-
-**Visual assets the design calls for:** a slate board surface, a dark atmospheric page backdrop, and cover
-art showing the void over a laid table. All three ship (§15).
+**Motion.** State changes are instantaneous snaps. Ambient motion is decorative only: the void bobs ±0.09,
+the next morsel turns and its glow and light pulse, the motes drift. All of it stops with the runtime's
+reduced-motion setting.
 
 ---
 
 ## 9. Audio direction
 
-**Mix philosophy.** Small, dry, close-mic'd sounds — this is a tabletop diorama, not a cathedral. Movement
-is the quietest layer, eating is the loudest, refusals are soft and brief so a clumsy player is never nagged.
-There is no music and no ambience: silence between moves is what makes the gulp land.
+**Mix philosophy.** Small, dry, close-mic'd sounds. Movement is the quietest layer, eating the loudest,
+refusals soft and brief. There is no music and no ambience.
 
-**Buses.** `js/sfx.js` builds `source → effectsBus → masterGain → destination`. `setMuted` and `setVolume`
-(default 0.8) act on the master gain. The `AudioContext` is created and resumed only on a user gesture
-(`unlock()` from every button and key path), so no browser autoplay warning is ever logged.
+**Buses.** `native/audio.ts` plays each clip at gain 0.8 (the browser build's master level) on the
+runtime's `effects` bus, the UI tap on `interface`. Volumes, mute and the voice limit are the runtime's
+Options › Audio. Clips load once the mixer runs (in browsers after the first press), one at a time, the
+most frequent events first; an event whose clips are not loaded yet is silent (the browser build's
+procedural fallback voices are not ported).
 
-**Playback.** Each event owns a list of variants, round-robined via a per-event cursor so consecutive
-identical actions never repeat a sample. Clips are lazily fetched and decoded on first use; until a clip is
-ready — or if it fails to load — the matching procedural synth voice in `js/sfx.js::synth` plays instead, so
-every event always makes a sound.
+**Playback.** Each event round-robins its variants so consecutive identical actions never repeat a sample.
 
 ### SFX event table
 
 | Event id | Files | Sound | Fires when |
 |---|---|---|---|
-| `void-move` | `void-slide-a..d.opus` | Soft one-tile slide over stone, wood, slate, carpet | The void steps onto an empty or already-eaten cell |
-| `eat` | `gobble-a..d.opus` | Wet hollow gulp, cartoon munch, comic chomp, deep plop | The next morsel in the order is consumed |
-| `invalid` | `thud-denied-a..b.opus` | Dull wooden thud; soft rubbery bonk | A step would leave the 4×4 board |
-| `wrong-order` | `wrong-order-a..b.opus` | Two muted wood clicks dropping in pitch; muffled bell tap | The target holds a morsel that is not next — softer than the edge thud, so the two refusals are told apart by ear |
-| `win` | `feast-complete-a..b.opus` | Rising brass-bell arpeggio; glockenspiel cascade | The twelfth morsel is eaten |
-| `restart` | `restart-sweep-a..b.opus` | Reverse airy sweep to a breathy pop; rising granular whoosh | `↻` or `R` lays out a fresh board |
-| `ui-click` | `ui-tap-a..b.opus` | Crisp wooden tap; soft plastic click | Any on-screen direction button, layered under the resulting cue |
-
-`sfx/manifest.txt` is the canonical form of this table (`file | event id | description | usage context`);
-`sfx/manifest.json` carries the generator prompts and durations, `sfx/manifest.md` is the readable mirror.
+| `void-move` | `void-slide-a..d.opus` | Soft one-tile slide | The void steps onto an empty or already-eaten cell |
+| `eat` | `gobble-a..d.opus` | Wet hollow gulp, munch, chomp, plop | The next morsel is consumed |
+| `invalid` | `thud-denied-a..b.opus` | Dull wooden thud; soft bonk | A step would leave the board |
+| `wrong-order` | `wrong-order-a..b.opus` | Two muted wood clicks; muffled bell tap | The target holds a morsel that is not next |
+| `win` | `feast-complete-a..b.opus` | Rising bell arpeggio; glockenspiel | The twelfth morsel is eaten |
+| `restart` | `restart-sweep-a..b.opus` | Reverse airy sweep; rising whoosh | `↻`, `R` or pad North lays out a fresh board |
+| `ui-click` | `ui-tap-a..b.opus` | Crisp tap; soft click | A control-bar direction button or ⚙, under the resulting cue |
 
 ---
 
 ## 10. Localization
 
-Nine locales ship: **en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it-IT**.
-
-- Strings live in one table in `js/i18n.js`. Markup carries `data-i18n` (text content) and
-  `data-i18n-aria` (`aria-label`); `apply()` fills both at `DOMContentLoaded`, and `document.documentElement.lang`
-  is set to the resolved tag. The Settings dialog's strings (Graphics labels, tier names, "Auto (detected: …)",
-  "From preset (…)", the post-processing note and the cost-summary words) are in all nine locales; `game.js`
-  reads them through `__hf_i18n.t` when it builds the Graphics controls. GPU names and AA acronyms stay as-is.
-- Settings → **Language → Game language** (rendered by `game-options.js` from the `sh-language.js` instance)
-  offers **Automatic — <resolved language>** plus the nine locales by native name, with a status line
-  (Saved to account / Saved on this device / Account sync unavailable). A change applies immediately:
-  `data-i18n` text is re-applied, `hf-language` fires, and the Graphics labels, sync chip, player cell and
-  how-to line re-render without restarting the round.
-- Resolution (`js/sh-language.js`): explicit game choice → for Automatic, the StarHermit account's
-  `preferredLanguage` (`GET /api/v1/me/language`, signed in only) → `navigator.languages` → `en-US`. Tags map
-  to the nearest shipped locale (`es-MX → es-419`, `en-AU → en-GB`, `fr → fr-FR`, `pt-PT → pt-BR`). The
-  choice (`auto` or a locale) is stored per player in `localStorage['hollow-feast.language.<user|guest>']`
-  (migrating the old `hf.lang`) and, when signed in, in the per-player settings key `ui.language` as
-  `{ choice }`; a failed settings read never overwrites it, and the game never writes the platform
-  preference. `?lang=` forces a locale for the page load (QA links) and hides the selector.
-- The game name "Hollow Feast" is a proper noun and is never translated. Score and progress are digits and
-  the `n / 12` separator, so no locale changes what the HUD or the automated playthrough reads.
-- Expansion: the rule line is capped at 62 characters wide and wraps freely; HUD labels sit in a flex row
-  with independent cells; button labels are arrow glyphs with translated `aria-label`s, so a 30 % longer
-  German or French string changes no layout. The longest shipped string (de-DE `howto`) already runs ~45 %
-  longer than en-US and fits at 390 px wide.
+Nine locales ship: **en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it-IT**, in `js/strings.js`.
+The locale follows the runtime's interface language (`preferences().language`: the player's Options ›
+Language, else the account's preferred language or the device's), mapped to the nearest shipped locale
+(`es-MX → es-419`, `en-AU → en-GB`, `fr → fr-FR`, `pt-PT → pt-BR`); a change applies on the next frame. The
+runtime's Options replace the browser build's own Language setting. "Hollow Feast" is never translated;
+numbers are locale-independent. Long strings (the how-to line, the Settings note, toasts) wrap with
+measured widths; HUD cells wrap into rows. `tests/i18n.test.mjs` checks every key in every locale and every
+key the client uses.
 
 ---
 
 ## 11. Accessibility
 
-- **Keyboard-only path is complete**: arrows/WASD play, `R` restarts, Tab reaches all six buttons in DOM
-  order with a 2 px `#6ea3ff` focus ring at 1 px offset. The Settings dialog is the only modal: opening it
-  focuses the Quality select, Tab is trapped inside it, `Esc` closes it and focus returns to the opener.
-- **Announcements**: the HUD row is `aria-live="polite"`, so score and progress are read after each move;
-  the win banner is `role="status"`. The WebGL-unavailable message is `role="alert"`.
-- **Labels**: the canvas, each direction button, the restart button and the control bar all carry
-  translated `aria-label`s; the arrow glyphs are decorative, so no assistive technology depends on them.
-- **Contrast**: body text `#e8ecf4` and HUD values `#ffffff` on `#0b0d12` far exceed 7:1; the `#b9c6dc` rule
-  line and `#9aa7bd` subtitle exceed 7:1 and 4.5:1 respectively; the `#f6e7b2` banner text sits on an 82 %
-  opaque `#0b0d12` plate rather than on the scene.
-- **Reduced motion**: the banner pop and all ambient scene motion (void bob, next-morsel spin/pulse, motes)
-  are guarded by `prefers-reduced-motion`. Game state itself never animates, so nothing is lost.
-- **Target sizes**: 56×44 CSS px, dropping to 50×36 only below 520 px of viewport height, laid out in one
-  row with no overlap.
-- **No colour-only information**: the next morsel is marked by an 18 % scale increase as well as by glow,
-  and the two refusal kinds differ in timbre, not only in pitch.
+- Keyboard-only and gamepad-only play are complete; Tab / D-pad navigation reaches all six buttons and the
+  Settings controls with a visible focus ring. Settings is modal; Escape or Back closes it and focus returns
+  to `⚙`.
+- Screen readers: the control buttons are named by their translated labels ("Move left", "Restart round",
+  "Settings", "Close settings"); the arrow glyphs are presentation. The win banner and toasts are announced.
+- The runtime's interface size, text size, high contrast and reduced motion apply to everything.
+- No colour-only information: the next morsel is also 18 % larger, and the two refusals differ in timbre.
 
 ---
 
 ## 12. StarHermit integration
 
-`starhermit.txt` declares `name=Hollow Feast`, `launch=index.html`, an `owner` id, `server=score-script.js`,
-`cover=coverart.png` (https://wiki.starhermit.com/), and the keyboard actions `control.left=ArrowLeft+KeyA`,
-`control.right=ArrowRight+KeyD`, `control.up=ArrowUp+KeyW`, `control.down=ArrowDown+KeyS`,
-`control.restart=KeyR`.
-
-`js/starhermit-sdk.js` (the shared client, unmodified) loads before `js/platform.js`, which calls
-`StarHermit.init()` as it boots (before `game.js`). The SDK reads the launch token from `#game_token=` (or
-the `#access_token=` sign-in return), strips it from the URL, takes the slug from `game_scope` and renews the
-token before expiry. Signed in, the game:
-
-- shows the profile nickname (never `/api/v1/me`, never usernames; `"Player " + id` fallback) and avatar
-  in the HUD player cell next to the sync chip;
-- keeps progress and personal records — the best line (score, refusals, ticks), win/clean-win counts and
-  the mid-round board — in one JSON save document: `localStorage['hf.save.v1']` is the offline cache, the
-  cloud-save slot `game:<slug>` is loaded remote-preferred at boot (nothing is written until that load
-  settles; a save made meanwhile is dropped if a remote doc was adopted) and written with a 2 s debounce and a
-  keepalive flush on `pagehide`/hidden; the sync cell shows local/loading/saving/synced/offline/error;
-- mirrors the Graphics settings (`hf.gfx.v1`) to the per-player settings KV on every change and applies the
-  platform value over the local one at boot;
-- routes `keydown` by `event.code` through `StarHermit.loadBindings`; when the player has rebound keys, the
-  how-to line appends the effective keys;
-- when another device saved first (the SDK's conditional write is refused and emits `saveconflict`),
-  reloads the cloud document and merges it — higher best score, larger win counts, this device's
-  in-progress board — then saves the merged document;
-- Settings → **Report a problem** (signed in only, from `game-options.js`) files a bug report through
-  `StarHermit.reportBug` with a small non-personal `context.json` (viewport, language, FPS cap, audio limit);
-  uncaught errors are filed as crash reports through `StarHermit.captureCrashes` (SDK-capped);
-- offers **Invite a friend** in Settings → Account, copying `StarHermit.inviteLink()` with a toast;
-- posts every solve of a fresh board to the `fastest-clear` leaderboard (time in ms, lower is better,
-  300 ms–1 h): the wall-clock time from the first input on the board to the twelfth morsel goes through
-  `StarHermit.submitScores` (a practice session whose `score-script.js` range-checks and posts it), and a
-  line under the *Feast complete!* banner shows the time and "Leaderboard rank: #N" (or posted / not
-  posted). A board resumed from the save document is not posted. The play itself stays untimed — no clock
-  is shown while playing.
-
-Served from `<id>.starhermit.com` without a token, Settings → Account offers **Sign in with StarHermit**.
-If renewal is refused, a toast says the player is signed out and play continues locally. Account strings are
-localized in all nine locales (`sh.*` keys in `js/i18n.js`). With no token (local dev, or a player who
-refuses auth) the adapter is fully inert — zero network calls — and play is identical to a local session.
-
-Not used: matchmaking, session invites, chat, replays and platform achievements; the only session is the
-one-message practice session that posts a solve time, and the time is client-measured (range-checked, not
-replay-validated). Realtime rooms and voice are out of scope.
-
-The rules engine is already shaped for a future validated leaderboard: pure functions, a serialisable state,
-a monotonic `tick`, an explicit terminal flag, and a fully deterministic replay from an input log.
+- **Save.** One document `{ v: 1, records }` (best line, wins, clean wins, the unfinished board) is the
+  game's save (`starhermit:storage` saves, schema 1): on the device at once and, signed in, synced to the
+  account. A conflict merges both devices' records (better best by score, refusals, ticks; larger
+  counters; the local unfinished board). Another device's save arriving is merged in, and an untouched
+  board takes its unfinished board.
+- **The browser build's cloud save** (the JS SDK's zipped `save.json`, slot `game:<slug>`) shows as
+  foreign: it is read (`saves.foreign().text`), merged into this device's records and saved over with
+  `replaceForeign` once. Guests' old browser `localStorage` progress (`hf.save.v1`) cannot migrate.
+- **Old settings.** The browser build's per-player settings (`gfx`, `audio.options`, `ui.language`,
+  `graphics.gpu.*`) are now the runtime's Options and are removed from the account.
+- **HUD.** The Player cell shows the account's display name and avatar (signed out: "Local player"); the
+  Sync cell shows Local / Loading / Saving / Synced / Offline / Error from the save's state.
+- **Leaderboard.** Signed in, every solve of a fresh board posts its time (ms from the first input to the
+  twelfth morsel, `frame().time`) to the `fastest-clear` board through `score-script.js` (a practice
+  session whose socket carries `{ type: 'result', scores }`; the script range-checks 300 ms–1 h and writes
+  the board). The line under the banner shows "N s · Leaderboard rank: #R" (or posted / not posted). A
+  board resumed from the save is never posted. Solo times are client-measured and range-checked (the
+  current policy for solo boards); results come only from the server script.
+- **Account.** Settings offers sign-in (`requestSignIn`) and the invite link (`inviteLink`, copied with
+  `clipboard`); signing out mid-run shows a toast and play continues on the device.
+- Not used: rooms, matchmaking, chat, replays, platform achievements. Report-a-problem and crash reports
+  are the runtime's.
 
 ---
 
 ## 13. Technical architecture
 
-- **Layering.** `rules.js` (pure, no globals beyond its export) ← `game.js` (all DOM and three.js) ←
-  `index.html` (structure and palette). `js/sfx.js`, `js/i18n.js` and `js/platform.js` are independent
-  leaves that expose `window.__hf_sfx` / `window.__hf_i18n` / `window.__hf_platform` and degrade to no-ops
-  if absent — `game.js` null-checks the audio module on every call and treats the platform adapter as
-  optional (no token → local-only records, zero network calls).
-- **Determinism.** `applyAction` is a pure function of `(state, dir)` and never mutates its input
-  (asserted in `tests/rules.test.mjs`), so an input log replays to an identical state. `game.js` may adopt a
-  pre-seeded `window.__hf_state` on boot and falls back to the authored layout if it is malformed.
-- **Persistence.** The platform save document (`localStorage['hf.save.v1']`, cloud-mirrored when a launch
-  token is present; see §12) holds the best line, win/clean-win counts and the mid-round board, so a reload
-  resumes an unfinished round. The `hf.lang` locale preference stays an independent localStorage read.
-- **Rendering budget.** One `requestAnimationFrame` render loop. At Low: ~14 meshes, 3 lights, no
-  post-processing, no shadow maps, pixel ratio capped at 1. Higher presets add ~20 detail meshes, one point
-  light, up to 120 points, a shadow map and the post chain (§8); the pixel ratio is
-  `min(dpr, preset cap) × preset scale × render scale × adaptive scale`, and the chain is rebuilt only when
-  its key (effects, size, ratio) changes. Camera refitting runs only on resize, driven by a
-  `ResizeObserver` on `#game-wrap` plus the `resize` event, and converges in at most 12 iterations.
-  Textures load asynchronously and only swap the board material in on success.
-- **Serving.** `server.js` resolves paths under the game root, rejects traversal and dotfiles, and returns
-  403 for `tests/`, `tools/` and `node_modules/`. `.webp` and `.opus` carry correct MIME types so the
-  backdrop, board texture and clips load without sniffing.
-- **Test hook.** `window.__hf_debug.frameBounds()` returns the NDC bounding box of the playfield fit points,
-  the void's NDC position and the canvas size. This is the only non-player surface `game.js` exposes, and
-  the e2e suite uses it to prove framing rather than to drive play.
+- **Layering.** `rules.js` and `js/progress.js` (pure, shared with the node tests) ← `native/main.ts`
+  (state, input, page) → `native/render.ts` (scene), `native/platform.ts`, `native/audio.ts`.
+- **Determinism.** `applyAction` is a pure function of `(state, dir)` and never mutates its input, so an
+  input log replays to an identical state; play scripts drive the real UI to fixed results.
+- **Frame.** `onUpdate` applies the graphics level's look when it changes and pumps clip loads;
+  `onRender` builds the page, hands the playfield rectangle to the renderer (refitting the camera only when
+  it changes), paints the backdrop around it and steps the ambient motion.
+- **Rendering budget.** Low: ~14 meshes, 3 lights, no post effects or shadows. Higher levels add the
+  detail meshes, one point light, up to 360 points, a shadow map and the post effects.
 
 ---
 
 ## 14. Testing and acceptance criteria
 
-**`npm test`** (`node --test tests/*.test.mjs`, zero dependencies) — 8 tests over `js/gfx.js` (GPU-string
-detection, the touch cap, auto vs explicit presets, overrides and invalid values, render-scale clamping,
-adaptive/fps defaults, preset choice clearing overrides, and the cost summary), 8 tests over `rules.js` (initial board
-shape, off-board illegality, order-gated edibility, the cost of an illegal action, non-mutation of the input
-state, the full 12-morsel scoring ladder to 450, scoring nothing for re-entering an eaten cell, and the
-sticky terminal state) plus 4 over `js/starhermit-sdk.js` + `js/platform.js` in a vm sandbox with a stubbed fetch: offline
-inertness (zero fetches, localStorage cache, `local` sync state), the hosted path (token read and stripped,
-nickname in the HUD cell, cloud save through `game:<slug>` with Bearer on every call, remote-preferred load on
-the next launch), the settings KV PATCH, bindings and invite link, and sign-in offered on the hosted domain.
-
-**`npm run test:e2e`** (`tests/e2e.mjs`, playwright-core + headless Chrome) — a rules prelude, then four
-passes over the real UI: desktop 1280×800, mobile 390×844 (touch), landscape phone 844×390 (touch) and a
-short desktop 1280×600. Each pass loads the page, asserts the title, canvas and all five buttons are
-visible, rejects an out-of-bounds move, solves the board by **clicking the on-screen buttons** with keyboard
-arrows mixed in every fourth move, verifies the HUD after every move against the scoring formula, asserts the
-win banner appears, checks post-win inertness, restarts by button and by `R` (asserting the banner clears),
-then opens Settings through the `⚙` button and drives the Graphics section — Auto is Low on the software GPU and the summary shows "Level 0",
-arrow keys go to the dialog not the void, Ultra, Low and High apply (`data-gfx-preset` / `data-gfx-post`), a
-Bloom override to Off applies and shows in the summary, the dialog fits the viewport, `Esc` closes it, the
-choices survive a reload, and choosing a preset clears the override — and samples the canvas for non-blank
-pixels; then it checks StarHermit: standalone makes no `/api/v1` request and Settings shows no Account
-section; a `#game_token=` launch against a stubbed API shows the nickname in the HUD, strips the token, loads
-`game:<slug>`, and Settings → Invite a friend shows an on-screen toast. Any `pageerror`, `console.error` or `console.warn` (other than known GL driver noise) fails the pass.
-
-Acceptance bar, as checkable statements — all currently true:
-
-- Every implemented feature is reachable in a browser with a mouse, a finger, or a keyboard alone.
-- No console errors or warnings at any of the four viewports, in any graphics preset.
-- After every move at every viewport, the whole slab and the void project inside the canvas, and the title,
-  rule line, HUD and all six buttons lie inside the viewport with no page scroll in either axis.
-- A first-time player is told the rule before their first input, and the next legal target is always marked
-  on the board.
-- Every input is acknowledged visually and audibly, including refused ones.
-- The game is fully playable end-to-end by automation through the visible UI, with no internal shortcuts.
+- `npm test` = `npm run test:unit` + `npm run test:native`.
+- `test:unit` (`node --test tests/*.test.mjs`): `rules.test.mjs` (the rules contract, unchanged),
+  `progress.test.mjs` (the browser build's cloud save read, sanitizing, merge, wins and tie-breaks, the
+  unfinished board's round trip, refusal kinds), `i18n.test.mjs` (nine locales, same keys, translated,
+  placeholders, every used key present).
+- `test:native` (`tests/native.mjs`): the web index matches the files, `tsc` (strict, the engine's
+  `.starhermit/starhermit.d.ts`), `starhermit check .` with zero warnings, and each `tests/native/*.play`
+  as a signed-out `--render-check`: `feast.play` (a refusal, the twelve courses by keys, the banner,
+  `450 · 1R · 13T`, `R` restarts) and `settings.play` (Settings by its button, the account and options
+  sections, ✕ closes, Move left and Restart round by their buttons).
+- `npm run test:browser` (`tools/browser-play.mjs`): the packaged loader in Chrome on the GPU at desktop
+  1366×768, phone 390×844 @ DPR 3 and landscape 844×390 @ DPR 3: a whole board by keys, restart, the
+  phones' control bar tapped, Settings opened and closed, no console errors or warnings, screenshots.
+- `npm run package` regenerates `index.html` + `starhermit-files.json` after every change.
 
 ---
 
 ## 15. Asset inventory
 
-| Path | Purpose | Source | Status |
-|---|---|---|---|
-| `assets/board-slate.webp` | 512×512 slate texture mapped onto the board plane; flat `#3a5f8a` remains the fallback | FLUX.2 klein, seed 5602, cropped + WebP q88 | Generated this pass, wired in `game.js` |
-| `assets/backdrop.webp` | 1280×720 cool/warm haze behind the whole page (`body` background) | FLUX.2 klein, seed 5603, WebP q80 | Generated this pass, wired in `index.html` |
-| `coverart.png` | 1200×675 platform cover: the void over the laid table | FLUX.2 klein, seed 5601, palette-reduced PNG (169 KB) | Regenerated this pass, replaces a generic placeholder; declared in `starhermit.txt` |
-| `icon.png`, `favicon.svg` | Platform icon and tab favicon | Authored earlier | Shipped |
-| `sfx/void-slide-a..d.opus` | `void-move` variants | MOSS-SFX | Shipped |
-| `sfx/gobble-a..d.opus` | `eat` variants | MOSS-SFX | Shipped |
-| `sfx/thud-denied-a..b.opus` | `invalid` variants | MOSS-SFX | Shipped |
-| `sfx/wrong-order-a..b.opus` | `wrong-order` variants | MOSS-SFX, 100 steps | Generated this pass, wired in `js/sfx.js` |
-| `sfx/restart-sweep-a..b.opus` | `restart` variants | MOSS-SFX, 100 steps | Generated this pass, wired in `js/sfx.js` |
-| `sfx/feast-complete-a..b.opus` | `win` variants | MOSS-SFX | Shipped |
-| `sfx/ui-tap-a..b.opus` | `ui-click` variants | MOSS-SFX | Shipped |
-| `js/three.module.min.js`, `js/three.core.min.js` | three.js r178 runtime | Vendored upstream | Shipped |
-| `js/addons/**` | three.js r178 post-processing passes, shaders, `SimplexNoise`, `RoomEnvironment` | Vendored upstream `examples/jsm` (MIT, `js/addons/LICENSE`) | Shipped |
+| Path | Purpose |
+|---|---|
+| `assets/board-slate.webp` | 512×512 slate texture on the board; flat `#3a5f8a` fallback |
+| `assets/backdrop.webp` | 1280×720 cool/warm haze behind the page |
+| `assets/ui-style.json` | Converted UI styles |
+| `cover.jpg`, `coverart.png`, `icon.png`, `favicon.*` | Platform artwork |
+| `sfx/*.opus` | The 18 clips of §9 |
 
-The walnut table grain, the mote sprite and the plate profile are generated in code, not shipped as files.
-
-No 3D model assets and no character animations: the two shapes in the scene are procedural primitives, and
-there is no humanoid to animate.
+The walnut grain, the mote sprite and the plate profile are generated in code.
 
 ---
 
 ## 16. Known limitations
 
-- **One board, forever.** The layout is a constant. Once the order is memorised, a solve is muscle memory;
-  there is nothing further to master.
-- **Records are minimal.** Only the best line, win/clean-win counts and the mid-round board persist
-  (§12) — there are still no unlocks, seeded layouts, run history or any way to compare against other
-  players.
-- **Refusals are only visible in the best line.** `invalidActions` drives tie-breaking, and the HUD best
-  cell shows the refusal count of the recorded best run (`450 · 0R · 12T`), but the current run's own
-  refusal count is not displayed, so the "clean run" goal during play is only in the player's head.
-- **No gamepad support.** Keyboard, pointer and touch only.
-- **No audio settings in the UI.** The Settings dialog has only a Graphics section; `setMuted` / `setVolume`
-  exist on `window.__hf_sfx` but nothing on screen calls them; the player's only recourse is the browser tab mute.
-- **The canvas is not clickable.** Tapping a morsel does nothing; all input goes through the buttons and keys.
-- **`seed` is stored but unused.** Every board is the authored one.
+- **One board, forever.** The layout is a constant.
+- **The current run's refusals are not shown** (only the best line's).
+- **The board is not clickable**; input goes through keys, pads and the control bar.
+- **`seed` is stored but unused.**
+- **Port differences.** The old Graphics panel's per-effect overrides are gone (the runtime's Options
+  choose a level); the slate texture is not downscaled per preset; the playfield's corners are square (the
+  browser build rounded them 8 px); sounds are silent until their clips load (no synthesized fallback);
+  guests' browser-only progress does not carry over; signed-in paths (cloud save migration, posting) are
+  covered by unit tests, not live-tested.
 
 ## Design intent not yet implemented
 
-- Seeded, generated layouts: `rules.js::initialState` already accepts and stores a `seed`, and nothing in
-  the engine depends on the authored order, but no generator or solvability validator ships.
-- An `invalidActions` HUD cell and an end-of-round breakdown (morsels, combo total, refusals) rather than a
-  single score number.
-- Validating posted solve times from the deterministic input log, and a separate board for clean (zero-refusal) solves.
-- In-UI audio and locale controls bound to the existing `__hf_sfx` and `__hf_i18n` APIs.
-
-## Browser interference
-
-`browser-guard.js` (loaded from `index.html`) suppresses browser UI that gets in the way of play: the right-click context menu, the iOS long-press callout, copy / cut / paste, and page text selection. Text fields (inputs, textareas, selects, contenteditable) keep normal selection, context menu and clipboard behaviour.
-
-
-## Sound and frame-rate options
-
-The options panel includes Sound controls for master, music, effects and UI volume, a mute that preserves volume levels, and an Auto or manual concurrent-sound limit (1–64). Changes apply immediately with perceptual volume curves. A shared allocator bounds Web Audio and media playback, including loops and scheduled sources. Graphics includes Auto display refresh or a custom maximum frame rate from 1–1000 FPS; rendering is paced independently of simulation and input. Preferences persist locally, with FPS stored per detected GPU, and reconcile with Starhermit settings when signed in. The controls support keyboard and touch input and the supported English, Spanish, German, French, Portuguese and Italian locales.
+- Seeded, generated layouts (`initialState` already stores a `seed`).
+- An in-play refusal counter and an end-of-round breakdown.
+- Server-validated solve times from the deterministic input log; a separate board for clean solves.
