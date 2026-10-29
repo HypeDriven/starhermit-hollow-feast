@@ -2,7 +2,7 @@
 
 A hungry pale void hovers over a slate banquet table and must swallow twelve glowing morsels
 **in numbered order**. This document describes the game as it ships today: a StarHermit engine script
-game (engine 1.24.0, host API 1.21), played natively by the StarHermit client and in browsers by the
+game (engine 1.26.1, host API 1.28), played natively by the StarHermit client and in browsers by the
 engine's web runtime.
 
 ---
@@ -23,7 +23,7 @@ engine's web runtime.
 
 | Path | Responsibility |
 |---|---|
-| `starhermit.txt` | Manifest: name, owner, `server=score-script.js`, cover, `launch=index.html`, `engine.api=1`, `engine.entry=native/main.ts`, `engine.version=1.24.0`, `engine.minor=19`, capabilities `platform,storage,clipboard`, the five actions with keys and pad defaults. |
+| `starhermit.txt` | Manifest: name, owner, `server=score-script.js`, cover, `launch=index.html`, `engine.api=1`, `engine.entry=native/main.ts`, `engine.version=1.26.1`, `engine.minor=28`, capabilities `platform,storage,clipboard`, the five actions with keys and pad defaults. |
 | `native/main.ts` | Entry module: board state, moves and restarts (keys, pads, buttons), sounds per outcome, records, the solve timer and leaderboard posting, and the page as `starhermit:ui` (header, playfield rectangle, HUD, control bar, win banner, Settings dialog, toast). |
 | `native/render.ts` | The table on `starhermit:scene`: meshes, lights, materials per budget, textures, motes, the post effects, the camera fit and view offset into the playfield, ambient motion. |
 | `native/quality.ts` | The browser build's four presets and budgets keyed by the runtime's quality tier and level. |
@@ -230,7 +230,7 @@ the camera's view offset places that picture in the playfield rectangle of the w
 
 **Lighting.** ACES filmic tone mapping at exposure 0.95. A cool-sky / warm-table hemisphere fill, a low
 flat ambient and one warm directional key from `(-4, 10, 8)`, at the browser build's three.js intensities
-÷ π. The key's shadows cover the camera distance plus the board along the view.
+(three.js r178, minor 23+). The key's orthographic shadow box is fitted to the playfield in light space (normalBias 0.03).
 
 **Graphics levels.** The runtime's Options choose the graphics level (Auto by default); the game maps the
 level's quality tier to the browser build's presets, each tuned to hold 60 FPS on the weakest GPU its Auto

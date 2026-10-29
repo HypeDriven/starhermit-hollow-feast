@@ -18,9 +18,8 @@
 // fitted as fitCamera() did so the whole playfield stays inside it at any
 // aspect.
 //
-// Gaps from three.js: lights take three.js intensities ÷ π; the key light's
-// shadow covers `shadow.distance` along the view instead of a box fitted by
-// hand; the normal bias is the engine's (texels) default; the slate texture
+// Lights take three.js r178 intensities (minor 23+) and the key light's shadow box is fitted
+// to the playfield by hand as game.js did. Gaps from three.js: the slate texture
 // is not downscaled per preset (the walnut grain still is; both take the preset's anisotropy); attenuated
 // points are sized by the window's height, so mote sizes are scaled by the
 // playfield's share of it.
@@ -30,12 +29,12 @@ import {
   MeshPhysicalMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, PMREMGenerator, PointLight, Points, PointsMaterial,
   RepeatWrapping, RoomEnvironment, SphereGeometry, SRGBColorSpace, TextureLoader, Vector2, Vector3, renderer, scene,
   type Side, type Texture,
+  type OrthographicCamera,
 } from "starhermit:scene";
 import { OffscreenCanvas } from "starhermit:canvas";
 import type { State } from "./classic.ts";
 import { MOTE_MAX, type Look } from "./quality.ts";
 
-const L = (i: number): number => i / Math.PI; // three.js light intensity → the engine's
 
 export const camera = new PerspectiveCamera(50, 1, 0.1, 200);
 renderer.camera = camera;
@@ -46,18 +45,17 @@ scene.background = new Color(0x141a26);
 // Viewing direction (from the board centre towards the camera).
 const CAM_DIR = new Vector3(0, 16.5, 15).normalize();
 
-const hemi = new HemisphereLight(0xc6d4f5, 0x3a2a1c, L(1.05));
+const hemi = new HemisphereLight(0xc6d4f5, 0x3a2a1c, 1.05);
 scene.add(hemi);
-scene.add(new AmbientLight(0xffffff, L(0.3)));
-const dir = new DirectionalLight(0xfff0dc, L(1.8));
+scene.add(new AmbientLight(0xffffff, 0.3));
+const dir = new DirectionalLight(0xfff0dc, 1.8);
 dir.position.set(-4, 10, 8).normalize().multiplyScalar(30);
 dir.target.position.set(0, 0, 0);
 scene.add(dir);
 scene.add(dir.target);
 dir.shadow.bias = -0.0004;
-dir.shadow.normalBias = 3; // texels; three.js used a 0.03 world-unit normal bias
+dir.shadow.normalBias = 0.03;
 dir.shadow.radius = 3;
-dir.shadow.distance = 70;
 
 // The logical board is 4x4 with grid pitch STEP; the plane is the grid plus a rim.
 const STEP = 4.2;
@@ -326,7 +324,7 @@ export function applyLook(next: Look): void {
   const env = next.reflections ? environment() : null;
   scene.environment = env;
   scene.environmentIntensity = 0.4;
-  hemi.intensity = L(env ? 0.7 : 1.05);
+  hemi.intensity = env ? 0.7 : 1.05;
   motes.visible = next.motes > 0;
   moteGeo.setDrawRange(0, next.motes);
   highlightNext();
@@ -385,6 +383,28 @@ const FIT_POINTS: Vector3[] = [];
     }
   }
 }
+// Fit the key light's orthographic shadow box tightly around the playfield (every fit point), in
+// light space (game.js fitShadow; the light looks from dir.position at the board centre).
+{
+  const z = dir.position.clone().sub(dir.target.position).normalize();
+  const x = new Vector3().crossVectors(new Vector3(0, 1, 0), z).normalize();
+  const y = new Vector3().crossVectors(z, x);
+  const b = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity };
+  const v = new Vector3();
+  for (const p of FIT_POINTS) {
+    v.copy(p).sub(dir.position);
+    const lx = v.dot(x), ly = v.dot(y), lz = v.dot(z);
+    b.minX = Math.min(b.minX, lx); b.maxX = Math.max(b.maxX, lx);
+    b.minY = Math.min(b.minY, ly); b.maxY = Math.max(b.maxY, ly);
+    b.minZ = Math.min(b.minZ, lz); b.maxZ = Math.max(b.maxZ, lz);
+  }
+  const cam = dir.shadow.camera as OrthographicCamera;
+  const pad = 0.6;
+  cam.left = b.minX - pad; cam.right = b.maxX + pad;
+  cam.bottom = b.minY - pad; cam.top = b.maxY + pad;
+  cam.near = Math.max(0.1, -b.maxZ - 2); cam.far = -b.minZ + 2;
+  cam.updateProjectionMatrix();
+}
 const FIT_FILL = 0.92;
 const fitTarget = new Vector3();
 const tmp = new Vector3();
@@ -430,7 +450,6 @@ function fitCamera(aspect: number): void {
   }
   camera.position.copy(CAM_DIR).multiplyScalar(dist).add(fitTarget);
   camera.lookAt(fitTarget);
-  dir.shadow.distance = dist + BOARD;
 }
 
 /** The playfield's window rectangle (window px) in a W × H window. */
@@ -440,6 +459,8 @@ export function setRect(x: number, y: number, w: number, h: number, W: number, H
   x = Math.round(x); y = Math.round(y);
   if (view.x === x && view.y === y && view.w === w && view.h === h && view.W === W && view.H === H) return;
   Object.assign(view, { x, y, w, h, W, H });
+  // minor 20+: the camera keeps its own aspect — the old canvas's (game.js resize)
+  camera.aspect = w / h;
   fitCamera(w / h);
   camera.setViewOffset(w, h, -x, -y, W, H);
   camera.updateProjectionMatrix();
@@ -462,7 +483,7 @@ export function update(dtIn: number, reduced: boolean): void {
     if (moving) m.rotation.y += dt * 0.7;
     const pulse = moving ? 0.5 + 0.5 * Math.sin(t * 3.1) : 0.5;
     itemMat(nextIndex).emissiveIntensity = nextGlow() * (0.85 + 0.3 * pulse);
-    nextLight.intensity = L(9 * (0.9 + 0.2 * pulse));
+    nextLight.intensity = 9 * (0.9 + 0.2 * pulse);
   }
   if (motes.visible && moving && look) {
     const n = look.motes;
