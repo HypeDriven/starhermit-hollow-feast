@@ -311,7 +311,7 @@ export function applyLook(next: Look): void {
   // game.js GradeShader: a gentle S-curve (0.22), saturation 1.1, cool shadows / warm highlights
   // over smoothstep(0.15, 0.8), the 0.28 vignette.
   renderer.grade = next.grade ? {
-    space: "display", contrast: 0.11, saturation: 1.1,
+    space: "display", contrastCurve: "s", contrast: 0.22, saturation: 1.1,
     shadows: [0.95, 0.98, 1.06], highlights: [1.05, 1.0, 0.94], split: [0.15, 0.8],
     vignette: { amount: 0.28, inner: 0.32, outer: 0.8 },
   } : null;
