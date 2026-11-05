@@ -195,29 +195,11 @@ function hud(L: Lay): void {
   const labelCls = L.short ? "hud-label-short" : "hud-label";
   const face = platform.avatarImage();
   // The player's name is cut at 170 px, as the browser build's ellipsis did.
-  const fit = (s: string, max: number): string => {
-    if (ui.measureText(s, { style: ["hud-value"] }).width / sc <= max) return s;
-    let t = s;
-    while (t.length > 1 && ui.measureText(t + "…", { style: ["hud-value"] }).width / sc > max) t = t.slice(0, -1);
-    return t + "…";
-  };
-  const widthOf = (c: Cell): number => Math.max(
-    ui.measureText(c.label, { style: [labelCls] }).width / sc,
-    ui.measureText(c.id === "player" ? fit(c.value, 170) : c.value, { style: [c.cls], size: valueSize }).width / sc + (c.avatar && face ? 20 : 0),
-  ) + 2;
-  // flex-wrap: rows of cells, 16 px apart, wrapping at the page width
-  const rows: Cell[][] = [[]];
-  let used = 0;
-  const max = L.lw - 24;
-  for (const c of cells) {
-    const w = widthOf(c);
-    if (rows[rows.length - 1]!.length && used + 16 + w > max) { rows.push([]); used = 0; }
-    used += (rows[rows.length - 1]!.length ? 16 : 0) + w;
-    rows[rows.length - 1]!.push(c);
-  }
+  const long = (c: Cell): boolean => c.id === "player" && ui.measureText(c.value, { style: [c.cls], size: valueSize }).width / sc > 170;
+  // flex-wrap: cells 16 px apart, lines 4 px apart, wrapping at the page width
   ui.column("hud", () => {
-    rows.forEach((row, ri) => ui.row(`hud-r${ri}`, () => {
-      for (const c of row) {
+    ui.row("hud-cells", () => {
+      for (const c of cells) {
         ui.column(`cell-${c.id}`, () => {
           ui.id(`${c.id}-label`).style(labelCls).label(c.label);
           ui.row(`${c.id}-vrow`, () => {
@@ -227,11 +209,11 @@ function hud(L: Lay): void {
                 draw: (r) => draw.image(face, r.x, r.y, r.width, r.height),
               });
             }
-            ui.id(`${c.id}-value`).style(c.cls).label(c.id === "player" ? fit(c.value, 170) : c.value, { size: valueSize });
+            ui.id(`${c.id}-value`).style(c.cls, long(c) && { width: 170, text: { overflow: "ellipsis" } }).label(c.value, { size: valueSize });
           }, { spacing: 4, align: "center" });
         }, { align: "center", spacing: 0 });
       }
-    }, { spacing: 16, align: "start" }));
+    }, { wrap: true, width: L.lw - 24, gap: { column: 16, row: 4 }, justify: "center", align: "start" });
   }, { align: "center", spacing: 4, padding: { top: L.short ? 4 : 8 } });
 }
 
@@ -370,7 +352,6 @@ onUpdate((dt) => {
   frameDt = dt;
   if (!boundRead) { boundRead = true; readBindings(); }
   applyLook();
-  audio.update();
   if (toast && now() > toast.until) toast = null;
 });
 onRender(() => {

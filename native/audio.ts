@@ -6,29 +6,17 @@
 // rest on "effects" (Options › Audio owns the volumes, the mute and the voice
 // limit). The oscillator voices the browser build played while a clip was
 // still loading are not ported (the web runtime drops clip loads while a
-// synthesis graph runs): until its clip is in, an event is silent. Clips
-// load once the mixer runs (natively at once, in a browser after the first
-// press), one at a time, the most frequent events first.
+// synthesis graph runs): until its clip is in, an event is silent. Every
+// clip loads at once in onStart.
 import { files } from "starhermit:engine";
-import { context, loadClip, play as playClip, type AudioClip, type Bus } from "starhermit:audio";
+import { loadClip, play as playClip, type AudioClip, type Bus } from "starhermit:audio";
 
 const GAIN = 0.8;
-const FIRST = ["void-move", "eat", "ui-click", "invalid", "wrong-order", "restart", "win"];
 
 const eventFiles = new Map<string, string[]>();
 const cursor = new Map<string, number>();
 const clips = new Map<string, AudioClip>();
-const queue: string[] = [];
-let loading = false;
-let wantClips = false;
-function load(name: string): void { if (!queue.includes(name) && !clips.has(name)) queue.push(name); }
-function pump(): void {
-  if (loading || !queue.length) return;
-  const name = queue.shift()!;
-  loading = true;
-  loadClip(`sfx/${name}.opus`).then((c) => { clips.set(name, c); loading = false; }, (e: unknown) => { console.warn(`sfx ${name}: ${String(e)}`); loading = false; });
-}
-/** Reads the manifest; the clips load once the mixer runs (see update). */
+/** Reads the manifest and loads every clip at once (onStart); an event whose clips are still loading is silent. */
 export function loadSfx(): void {
   try {
     const list = files.readJson("sfx/manifest.json") as unknown as { name?: string; event?: string }[];
@@ -39,7 +27,9 @@ export function loadSfx(): void {
       eventFiles.set(e.event, l);
     }
   } catch (e) { console.warn(`sfx manifest: ${String(e)}`); }
-  wantClips = true;
+  for (const name of new Set([...eventFiles.values()].flat())) {
+    loadClip(`sfx/${name}.opus`).then((c) => { clips.set(name, c); }, (e: unknown) => console.warn(`sfx ${name}: ${String(e)}`));
+  }
 }
 
 /** Plays an event's next ready variant; silent while its clips load. */
@@ -54,18 +44,7 @@ export function play(event: string): void {
     cursor.set(event, (idx + 1) % names.length);
     const bus: Bus = event === "ui-click" ? "interface" : "effects";
     try { playClip(clip, { bus, gain: GAIN }); }
-    catch { clips.delete(names[idx]!); load(names[idx]!); } // a clip the mixer lost: load it again
+    catch { /* the mixer is full this frame: skip it */ }
     return;
   }
-}
-
-/** Each frame: the clips, once the mixer runs. */
-export function update(): void {
-  if (context.state !== "running") return;
-  if (wantClips) {
-    wantClips = false;
-    for (const e of FIRST) for (const n of eventFiles.get(e) ?? []) load(n);
-    for (const l of eventFiles.values()) for (const n of l) load(n);
-  }
-  pump();
 }
