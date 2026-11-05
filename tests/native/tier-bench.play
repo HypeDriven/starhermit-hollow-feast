@@ -1,0 +1,34 @@
+# Graphics-tier bench (tools/engine-tier-bench.mjs): the full board by keys at a relaxed pace,
+# measured while the void moves through the twelve courses (morsels eaten, the next-course light,
+# motes, shadows and post effects), then the win banner.
+until 300 Hollow Feast
+frames 120
+expect 0 / 12
+measure start
+key ArrowLeft 1
+frames 40
+key ArrowLeft 1
+frames 40
+key ArrowLeft 1
+frames 40
+key ArrowDown 1
+frames 40
+key ArrowRight 1
+frames 40
+key ArrowRight 1
+frames 40
+key ArrowDown 1
+frames 40
+key ArrowLeft 1
+frames 40
+key ArrowLeft 1
+frames 40
+key ArrowDown 1
+frames 40
+key ArrowRight 1
+frames 40
+key ArrowRight 1
+frames 40
+until 60 Feast complete!
+frames 100
+measure stop

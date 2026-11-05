@@ -234,19 +234,24 @@ flat ambient and one warm directional key from `(-4, 10, 8)`, at the browser bui
 
 **Graphics levels.** The runtime's Options choose the graphics level (Auto by default); the game maps the
 level's quality tier to the browser build's presets, each tuned to hold 60 FPS on the weakest GPU its Auto
-gave the preset:
+gave the preset. Shadows and their map size, ambient occlusion, bloom, the grade, anti-aliasing,
+texture anisotropy and the largest texture are the level's own (`levelSettings()`, the table every
+StarHermit game reads); the table shows them at each tier's anchor level (quantum, molecular,
+terrestrial, galactic); higher levels within a tier get more (e.g. stellar's 4096 shadows and
+full-resolution AO 16). Low keeps MSAA while engine 1.36.1's anti-aliasing "off" recolours
+translucent overlays (the level asks for none):
 
 | | Low | Balanced | High | Ultra |
 |---|---|---|---|---|
 | Shading | Lambert | Standard | Physical (clear-coated plates, morsels, void) | Physical |
-| Shadows (requested map; the level caps it) | off | 512 | 1024 | 2048 |
+| Shadows (the level's map; bias −0.0004, normalBias 0.03, radius 3) | off | 1024 | 2048 | 4096 |
 | Ambient occlusion | off | off | on (8 samples) | high (16) |
 | Bloom (strength 0.42, radius 0.45, threshold 0.9) | off | on | on | on |
 | Colour grade + vignette | off | on | on | on |
 | Anti-aliasing | MSAA | FXAA | SMAA | MSAA |
 | Reflections (RoomEnvironment, intensity 0.4) | off | on | on | on |
 | Table detail (slab, walnut top, plates, next-course light) | plain | detailed | detailed | detailed |
-| Motes (× level within the tier, ≤ 2×) | 0 | 40 | 120 | 180 |
+| Motes (× the level's particle budget over the anchor's, ≤ 2×) | 0 | 40 | 120 | 180 |
 | Void / plate segments | 20 | 32 | 48 | 64 |
 | Walnut texture / anisotropy | 128 px / 1× | 256 / 4× | 512 / 8× | 1024 / 16× |
 | Bloom / AO resolution | ½ | ½ | ½ | full |
@@ -271,8 +276,7 @@ refusals soft and brief. There is no music and no ambience.
 
 **Buses.** `native/audio.ts` plays each clip at gain 0.8 (the browser build's master level) on the
 runtime's `effects` bus, the UI tap on `interface`. Volumes, mute and the voice limit are the runtime's
-Options › Audio. Clips load once the mixer runs (in browsers after the first press), one at a time, the
-most frequent events first; an event whose clips are not loaded yet is silent (the browser build's
+Options › Audio. Every clip loads at once at start; an event whose clips are not loaded yet is silent (the browser build's
 procedural fallback voices are not ported).
 
 **Playback.** Each event round-robins its variants so consecutive identical actions never repeat a sample.

@@ -11,7 +11,7 @@
 // win banner with its leaderboard line, the Settings dialog (account and the
 // runtime's Options) and the toast. The board is drawn by render.ts.
 import "./classic.ts";
-import { clipboard, frame, onPreferencesChange, onRender, onStart, onSuspend, onUpdate, openMenu, preferences } from "starhermit:engine";
+import { clipboard, frame, levelSettings, onPreferencesChange, onRender, onStart, onSuspend, onUpdate, openMenu, preferences } from "starhermit:engine";
 import { bindings, onAction, onBindingsChange } from "starhermit:input";
 import * as draw from "starhermit:draw";
 import * as ui from "starhermit:ui";
@@ -325,10 +325,10 @@ function drawPage(): void {
 let lookKey = "";
 function applyLook(): void {
   const f = frame();
-  const k = `${f.quality}:${f.levelIndex}`;
+  const k = f.level;
   if (k === lookKey) return;
   lookKey = k;
-  render.applyLook(lookFor(f.quality, f.levelIndex));
+  render.applyLook(lookFor(levelSettings(f.level)));
 }
 onStart(() => {
   initStyles();

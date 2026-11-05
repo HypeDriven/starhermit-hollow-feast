@@ -20,7 +20,7 @@
 //
 // Lights take three.js r178 intensities (minor 23+) and the key light's shadow box is fitted
 // to the playfield by hand as game.js did. Gaps from three.js: the slate texture
-// is not downscaled per preset (the walnut grain still is; both take the preset's anisotropy); attenuated
+// is not downscaled per preset (the walnut grain still is; both take the level's anisotropy); attenuated
 // points are sized by the window's height, so mote sizes are scaled by the
 // playfield's share of it.
 import {
@@ -300,14 +300,18 @@ export function applyLook(next: Look): void {
   const shadows = next.shadows > 0;
   renderer.shadowMap.enabled = shadows;
   dir.castShadow = shadows;
+  // The level's map size (at engine.minor ≥ 23 the engine keeps whatever the game sets); the bias,
+  // normal bias and blur radius stay this game's tuning.
   if (shadows) dir.shadow.mapSize = next.shadows;
-  renderer.ao = next.ao === "off" ? null : {
+  // The level's AO; full resolution is the engine's "high" (the old Ultra's wider denoise).
+  const ao = next.ao, full = !!ao && ao.resolution >= 1;
+  renderer.ao = ao && {
     blendIntensity: 0.75, radius: 1.2, distanceExponent: 1.5, thickness: 1.5, scale: 1.0,
-    samples: next.ao === "high" ? 16 : 8, resolution: next.budget.aoRes,
-    denoise: { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: next.ao === "high" ? 6 : 4, rings: 2, samples: next.ao === "high" ? 16 : 8 },
+    samples: ao.samples, resolution: ao.resolution,
+    denoise: { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: full ? 6 : 4, rings: 2, samples: ao.denoiseSamples },
   };
   // High threshold: only the glowing morsel, the void's sheen and the motes bloom.
-  renderer.bloom = next.bloom ? { strength: 0.42, radius: 0.45, threshold: 0.9, resolution: next.budget.bloomRes } : null;
+  renderer.bloom = next.bloom === null ? null : { strength: 0.42, radius: 0.45, threshold: 0.9, resolution: next.bloom };
   // game.js GradeShader: a gentle S-curve (0.22), saturation 1.1, cool shadows / warm highlights
   // over smoothstep(0.15, 0.8), the 0.28 vignette.
   renderer.grade = next.grade ? {
@@ -334,7 +338,7 @@ export function applyLook(next: Look): void {
 let state: State | null = null;
 const NEXT_EMISSIVE = 0xff8c3a;
 let nextIndex = -1;
-function nextGlow(): number { return look && look.bloom ? 1.35 : 0.85; }
+function nextGlow(): number { return look && look.bloom !== null ? 1.35 : 0.85; }
 function highlightNext(): void {
   if (!state) return;
   const s = state;
