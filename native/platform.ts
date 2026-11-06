@@ -8,16 +8,14 @@
 // - the browser build's per-player settings (gfx, audio.options, ui.language,
 //   graphics.gpu.*) are now the runtime's Options and are removed;
 // - the player's name and avatar, the invite link, and posting a fresh
-//   board's solve time to the fastest-clear board through score-script.js (a
-//   practice session whose socket carries { type: 'result', scores }, as the
-//   JS SDK's submitScores did; score-script.js range-checks it and writes
-//   the board) with the player's rank read back.
+//   board's solve time to the fastest-clear board with leaderboards.submitScore
+//   (score-script.js range-checks it and writes the board), rank included.
 import type { JsonValue } from "starhermit:engine";
 import type { ImageBitmap } from "starhermit:canvas";
 import {
-  avatar as fetchAvatar, connectGame, inviteLink as fetchInviteLink, leaderboards, onPlayerChange, player, sessions,
+  avatar as fetchAvatar, inviteLink as fetchInviteLink, leaderboards, onPlayerChange, player,
 } from "starhermit:platform";
-import { saves, settings as store, storage } from "starhermit:storage";
+import { saves, settings as store } from "starhermit:storage";
 import { Progress as P, type Doc, type Records } from "./classic.ts";
 
 // --- the save ------------------------------------------------------------------------------
@@ -125,7 +123,6 @@ function refreshPlayer(): void {
   if (!p) return;
   fetchInviteLink().then((u) => { invite = u; }, () => { invite = null; });
   fetchAvatar(p.userId).then((b) => { face = b; }, () => { face = null; });
-  void fastestBoard().catch(() => null);
 }
 let wasSignedIn = false;
 let signedOutCb: (() => void) | null = null;
@@ -139,58 +136,9 @@ onPlayerChange(() => {
 });
 
 // --- the StarHermit fastest-clear board -------------------------------------------------------
-const BOARD_KEY = "hollowfeast.board-id";
 const SCORE_KEY = "fastest-clear";
-let boardId: string | null = null;
-/** The board's id: listed signed in, then kept on the device. */
-async function fastestBoard(): Promise<string | null> {
-  if (boardId) return boardId;
-  if (player()) {
-    try {
-      const list = await leaderboards.list();
-      const b = list.find((x) => x.key === SCORE_KEY) ?? list[0];
-      if (b) { boardId = b.id; try { storage.set(BOARD_KEY, b.id); } catch { /* full */ } }
-    } catch { /* offline */ }
-  }
-  if (!boardId) { try { boardId = storage.getText(BOARD_KEY); } catch { boardId = null; } }
-  return boardId;
-}
-
 /** Signed in only: post a fresh board's solve time (ms) through score-script.js; { posted, rank }. Never rejects. */
 export async function postSolveTime(ms: number): Promise<{ posted: boolean; rank: number | null }> {
-  const me = player();
-  if (!me) return { posted: false, rank: null };
-  const score = Math.max(1, Math.round(ms));
-  let accepted: string[] = [];
-  try {
-    const sessionId = await sessions.practice();
-    accepted = await new Promise<string[]>((resolve) => {
-      const socket = connectGame(sessionId);
-      let done = false;
-      const finish = (list: string[]): void => {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        socket.close();
-        resolve(list);
-      };
-      const timer = setTimeout(() => finish([]), 15000);
-      socket.on("open", () => { socket.sendCommand({ type: "result", scores: { [SCORE_KEY]: score } }); });
-      socket.on("game", (data) => {
-        const d = data as { type?: string; accepted?: string[] } | null;
-        if (d && d.type === "result-ack") finish(Array.isArray(d.accepted) ? d.accepted : []);
-      });
-      socket.on("error", () => finish([]));
-      socket.on("stopped", () => finish([]));
-      socket.on("abandoned", () => finish([]));
-    });
-  } catch { return { posted: false, rank: null }; }
-  if (!accepted.includes(SCORE_KEY)) return { posted: false, rank: null };
-  try {
-    const id = await fastestBoard();
-    if (!id) return { posted: true, rank: null };
-    const r = await leaderboards.entries(id, { pageSize: 100 });
-    const mine = r.items.find((e) => e.userId === me.userId);
-    return { posted: true, rank: mine ? mine.rank : null };
-  } catch { return { posted: true, rank: null }; }
+  const r = await leaderboards.submitScore(SCORE_KEY, Math.max(1, Math.round(ms)));
+  return { posted: r.accepted, rank: r.rank };
 }

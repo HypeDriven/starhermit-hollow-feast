@@ -1,10 +1,9 @@
 // The game's pure scripts, shared with the node tests: the rules (rules.js,
 // unchanged from the browser build), the save document and round bookkeeping
-// (js/progress.js) and the string tables (js/strings.js), evaluated as
-// classic scripts that leave their API on globalThis.
+// (js/progress.js), evaluated as classic scripts that leave their API on globalThis.
 import { loadClassic } from "starhermit:script";
 
-for (const f of ["rules.js", "js/progress.js", "js/strings.js"]) loadClassic(f);
+for (const f of ["rules.js", "js/progress.js"]) loadClassic(f);
 
 export type Dir = "left" | "right" | "up" | "down";
 export interface Cell { kind: "item" | null; order: number | null }
@@ -36,12 +35,6 @@ interface ProgressApi {
   eaten(s: State): number;
   refusalKind(prev: State, dir: Dir): "invalid" | "wrong-order";
 }
-interface StringsApi {
-  LOCALES: string[];
-  STRINGS: Record<string, Record<string, string>>;
-  t(locale: string, key: string, vars?: Record<string, string | number> | null): string;
-}
-const g = globalThis as unknown as { HFRules: RulesApi; HFProgress: ProgressApi; HFStrings: StringsApi };
+const g = globalThis as unknown as { HFRules: RulesApi; HFProgress: ProgressApi };
 export const Rules = g.HFRules;
 export const Progress = g.HFProgress;
-export const Strings = g.HFStrings;

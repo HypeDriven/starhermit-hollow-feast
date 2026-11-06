@@ -31,16 +31,14 @@ let state: State = P.freshState(R);
  * a board resumed from a save is never posted. Seconds of frame().time. */
 let runStart: number | null = null;
 let runFresh = true;
-let lb: { secs: string; key: "sh.lbPosting" | "sh.lbRank" | "sh.lbPosted" | "sh.lbNotPosted"; rank?: number | null } | null = null;
+let lb: { secs: string; key: "starhermit.leaderboardPosting" | "starhermit.leaderboardRank" | "starhermit.leaderboardPosted" | "starhermit.leaderboardNotPosted"; rank?: number | null } | null = null;
 let settingsOpen = false;
 let settingsOpenedFrame = -1;
-let toast: { text: string; until: number } | null = null;
 let reduced = false;
 
 function now(): number { return frame().time; }
 function showToast(text: string): void {
-  toast = { text, until: now() + 3.5 };
-  ui.announce(text);
+  ui.toast!(text, { duration: 3.5, style: ["toast", "toast-text"], dismissible: false });
 }
 
 /** The unfinished board in the save (the browser build's saveProgress). */
@@ -83,11 +81,11 @@ function restart(): void {
 /** Signed in, a fresh board's solve time goes to the fastest-clear board; the line shows the rank. */
 function postRun(ms: number): void {
   if (!platform.signedIn()) { lb = null; return; }
-  const line: NonNullable<typeof lb> = { secs: (ms / 1000).toFixed(1) + " s · ", key: "sh.lbPosting" };
+  const line: NonNullable<typeof lb> = { secs: (ms / 1000).toFixed(1) + " s · ", key: "starhermit.leaderboardPosting" };
   lb = line;
   void platform.postSolveTime(ms).then((r) => {
     if (lb !== line) return;
-    line.key = !r.posted ? "sh.lbNotPosted" : r.rank ? "sh.lbRank" : "sh.lbPosted";
+    line.key = !r.posted ? "starhermit.leaderboardNotPosted" : r.rank ? "starhermit.leaderboardRank" : "starhermit.leaderboardPosted";
     line.rank = r.rank;
   });
 }
@@ -133,11 +131,9 @@ new TextureLoader().loadAsync("assets/backdrop.webp").then((t) => { backdrop = t
 
 interface Lay { lw: number; lh: number; sc: number; short: boolean }
 function layout(): Lay {
-  const f = frame();
-  const sc = ui.preferences().scale;
-  const sa = f.safeArea;
-  const lw = Math.max(1, (f.width - sa.left - sa.right) / sc), lh = Math.max(1, (f.height - sa.top - sa.bottom) / sc);
-  return { lw, lh, sc, short: lh <= 520 };
+  const v = ui.viewport!();
+  const lw = Math.max(1, v.width), lh = Math.max(1, v.height);
+  return { lw, lh, sc: v.scale, short: lh <= 520 };
 }
 
 /** The page's backdrop (cover-fit), painted around the playfield so the board shows through. */
@@ -261,8 +257,8 @@ function settingsDialog(L: Lay): void {
       }, { width: w, align: "center" });
       ui.id("account-head").style("panel-head").label(tr("sh.account").toUpperCase());
       if (!platform.signedIn()) {
-        if (ui.id("signin").style("acct-btn", { width: w }).button(tr("sh.signIn"))) void requestSignIn().catch(() => undefined);
-      } else if (ui.id("invite").style("acct-btn", { width: w }).button(tr("sh.invite"))) copyInvite();
+        if (ui.id("signin").style("acct-btn", { width: w }).button(tr("starhermit.signIn"))) void requestSignIn().catch(() => undefined);
+      } else if (ui.id("invite").style("acct-btn", { width: w }).button(tr("starhermit.invite"))) copyInvite();
       ui.id("options-head").style("panel-head").label(tr("moreOptions").toUpperCase());
       ui.id("options-note").style("panel-note").paragraph(tr("optionsNote"), w);
       if (ui.id("options").style("acct-btn", { width: w }).button(tr("moreOptions"))) openMenu();
@@ -279,15 +275,7 @@ function copyInvite(): void {
   const link = platform.inviteLink();
   let ok = false;
   if (link) { try { clipboard.writeText(link); ok = true; } catch { ok = false; } }
-  showToast(ok ? tr("sh.copied") : tr("sh.copyFailed", { link: link ?? "" }));
-}
-
-function toastView(L: Lay): void {
-  if (!toast) return;
-  const w = Math.min(480, L.lw - 32);
-  ui.place("toast", { anchor: "bottom", y: 16 }, () => {
-    ui.column("toast-col", () => { text("toast-text", toast!.text, "toast-text", w - 34); }, { style: "toast" });
-  });
+  showToast(ok ? tr("starhermit.inviteCopied") : tr("starhermit.inviteLink", { link: link ?? "" }));
 }
 
 let rootH = 0;
@@ -317,7 +305,6 @@ function drawPage(): void {
     render.setRect(x, y, w, h, f.width, f.height);
     banner({ x, y, width: w, height: h }, L);
   }
-  toastView(L);
   settingsDialog(L);
 }
 
@@ -334,7 +321,7 @@ onStart(() => {
   initStyles();
   platform.initPlatform();
   platform.onRecordsMerged(onMerged);
-  platform.onSignedOut(() => showToast(tr("sh.signedOut")));
+  platform.onSignedOut(() => showToast(tr("starhermit.signedOut")));
   audio.loadSfx();
   reduced = preferences().reducedMotion;
   // An unfinished board from the save resumes where it left off (never posted).
@@ -352,7 +339,6 @@ onUpdate((dt) => {
   frameDt = dt;
   if (!boundRead) { boundRead = true; readBindings(); }
   applyLook();
-  if (toast && now() > toast.until) toast = null;
 });
 onRender(() => {
   drawPage();

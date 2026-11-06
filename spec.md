@@ -29,12 +29,12 @@ engine's web runtime.
 | `native/quality.ts` | The browser build's four presets and budgets keyed by the runtime's quality tier and level. |
 | `native/platform.ts` | Save (`starhermit:storage` saves, conflict merge, foreign-save migration), legacy settings removal, player name/avatar, invite link, the sync cell's state, fastest-clear posting through `score-script.js`. |
 | `native/audio.ts` | Clip events from `sfx/manifest.json` on the runtime's buses. |
-| `native/i18n.ts` | Locale from the runtime's interface language; `tr()`. |
+| `native/i18n.ts` | Loads the string tables (the engine's `strings`); `tr()`. |
 | `native/style.ts` | Theme and the converted style sheet (`assets/ui-style.json`). |
-| `native/classic.ts` | Loads `rules.js`, `js/progress.js`, `js/strings.js` as classic scripts; their TypeScript shapes. |
+| `native/classic.ts` | Loads `rules.js`, `js/progress.js` as classic scripts; their TypeScript shapes. |
 | `rules.js` | Pure rules engine (`initialState`, `isLegal`, `applyAction`), CommonJS for node and `globalThis.HFRules` for the engine. |
 | `js/progress.js` | Pure save document and round bookkeeping: sanitize, merge, the browser build's save, the fresh board, the unfinished board, wins and the best line. |
-| `js/strings.js` | The nine locales' string tables and `t()`. |
+| `assets/strings.json` | The nine locales' string tables, read by the engine's `strings`. |
 | `assets/board-slate.webp`, `assets/backdrop.webp` | Board texture; page backdrop. |
 | `assets/ui-style.json` | `starhermit css` output of `tools/ui-style.css`. |
 | `sfx/*.opus`, `sfx/manifest.*` | 18 one-shot clips; `manifest.txt` canonical, `manifest.json` read by the game, `manifest.md` mirror. |
@@ -196,7 +196,7 @@ Settings opens over either state and pauses nothing (there is no clock on screen
   signed in: *Invite a friend*, copying the invite link with a toast); **More options** with a note that
   sound, graphics, language and key bindings are in the StarHermit options, and a button opening the
   runtime's Options menu.
-- **Toast** — bottom centre for 3.5 s (invite copied / copy failed / signed out).
+- **Toast** — `ui.toast`, bottom centre for 3.5 s (invite copied / copy failed / signed out).
 
 Layout is one full-window column: header → playfield → HUD → controls. The playfield takes the room the
 others leave (8 px below the header, 16 px side margins, at most 1200 px wide), its aspect held between 1.0
@@ -238,8 +238,7 @@ gave the preset. Shadows and their map size, ambient occlusion, bloom, the grade
 texture anisotropy and the largest texture are the level's own (`levelSettings()`, the table every
 StarHermit game reads); the table shows them at each tier's anchor level (quantum, molecular,
 terrestrial, galactic); higher levels within a tier get more (e.g. stellar's 4096 shadows and
-full-resolution AO 16). Low keeps MSAA while engine 1.38.0's anti-aliasing "off" recolours
-translucent overlays (the level asks for none):
+full-resolution AO 16):
 
 | | Low | Balanced | High | Ultra |
 |---|---|---|---|---|
@@ -297,10 +296,9 @@ procedural fallback voices are not ported).
 
 ## 10. Localization
 
-Nine locales ship: **en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it-IT**, in `js/strings.js`.
+Nine locales ship: **en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it-IT**, in `assets/strings.json` (the engine's `strings`; account and leaderboard lines are its `starhermit.*`).
 The locale follows the runtime's interface language (`preferences().language`: the player's Options ›
-Language, else the account's preferred language or the device's), mapped to the nearest shipped locale
-(`es-MX → es-419`, `en-AU → en-GB`, `fr → fr-FR`, `pt-PT → pt-BR`); a change applies on the next frame. The
+Language, else the account's preferred language or the device's), read through the engine's locale chain; a change applies on the next frame. The
 runtime's Options replace the browser build's own Language setting. "Hollow Feast" is never translated;
 numbers are locale-independent. Long strings (the how-to line, the Settings note, toasts) wrap with
 measured widths; HUD cells wrap into rows. `tests/i18n.test.mjs` checks every key in every locale and every
@@ -335,8 +333,8 @@ key the client uses.
 - **HUD.** The Player cell shows the account's display name and avatar (signed out: "Local player"); the
   Sync cell shows Local / Loading / Saving / Synced / Offline / Error from the save's state.
 - **Leaderboard.** Signed in, every solve of a fresh board posts its time (ms from the first input to the
-  twelfth morsel, `frame().time`) to the `fastest-clear` board through `score-script.js` (a practice
-  session whose socket carries `{ type: 'result', scores }`; the script range-checks 300 ms–1 h and writes
+  twelfth morsel, `frame().time`) to the `fastest-clear` board with `leaderboards.submitScore`
+  through `score-script.js` (the script range-checks 300 ms–1 h and writes
   the board). The line under the banner shows "N s · Leaderboard rank: #R" (or posted / not posted). A
   board resumed from the save is never posted. Solo times are client-measured and range-checked (the
   current policy for solo boards); results come only from the server script.
