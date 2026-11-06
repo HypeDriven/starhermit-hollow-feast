@@ -2,7 +2,7 @@
 
 A hungry pale void hovers over a slate banquet table and must swallow twelve glowing morsels
 **in numbered order**. This document describes the game as it ships today: a StarHermit engine script
-game (engine 1.36.2, host API 1.32), played natively by the StarHermit client and in browsers by the
+game (engine 1.38.0, host API 1.38), played natively by the StarHermit client and in browsers by the
 engine's web runtime.
 
 ---
@@ -23,7 +23,7 @@ engine's web runtime.
 
 | Path | Responsibility |
 |---|---|
-| `starhermit.txt` | Manifest: name, owner, `server=score-script.js`, cover, `launch=index.html`, `engine.api=1`, `engine.entry=native/main.ts`, `engine.version=1.36.2`, `engine.minor=32`, capabilities `platform,storage,clipboard`, the five actions with keys and pad defaults. |
+| `starhermit.txt` | Manifest: name, owner, `server=score-script.js`, cover, `launch=index.html`, `engine.api=1`, `engine.entry=native/main.ts`, `engine.version=1.38.0`, `engine.minor=38`, capabilities `platform,storage,clipboard`, the five actions with keys and pad defaults. |
 | `native/main.ts` | Entry module: board state, moves and restarts (keys, pads, buttons), sounds per outcome, records, the solve timer and leaderboard posting, and the page as `starhermit:ui` (header, playfield rectangle, HUD, control bar, win banner, Settings dialog, toast). |
 | `native/render.ts` | The table on `starhermit:scene`: meshes, lights, materials per budget, textures, motes, the post effects, the camera fit and view offset into the playfield, ambient motion. |
 | `native/quality.ts` | The browser build's four presets and budgets keyed by the runtime's quality tier and level. |
@@ -238,7 +238,7 @@ gave the preset. Shadows and their map size, ambient occlusion, bloom, the grade
 texture anisotropy and the largest texture are the level's own (`levelSettings()`, the table every
 StarHermit game reads); the table shows them at each tier's anchor level (quantum, molecular,
 terrestrial, galactic); higher levels within a tier get more (e.g. stellar's 4096 shadows and
-full-resolution AO 16). Low keeps MSAA while engine 1.36.2's anti-aliasing "off" recolours
+full-resolution AO 16). Low keeps MSAA while engine 1.38.0's anti-aliasing "off" recolours
 translucent overlays (the level asks for none):
 
 | | Low | Balanced | High | Ultra |
