@@ -1,3 +1,7 @@
+import { localizedStyle as __l10nStyle } from "./l10n/font.ts";
+import { withLanguageRender as __l10nRender } from "./l10n/menu.ts";
+// localization-runtime:attached
+import { openLocalizedOptions as __l10nOptions } from "./l10n/menu.ts";
 // Hollow Feast on the StarHermit engine: the entry module (starhermit.txt
 // engine.entry), played natively by the StarHermit client and in browsers by
 // the engine's web runtime. The rules are the browser build's rules.js,
@@ -11,7 +15,7 @@
 // win banner with its leaderboard line, the Settings dialog (account and the
 // runtime's Options) and the toast. The board is drawn by render.ts.
 import "./classic.ts";
-import { clipboard, frame, levelSettings, onPreferencesChange, onRender, onStart, onSuspend, onUpdate, openMenu, preferences } from "starhermit:engine";
+import { clipboard, frame, levelSettings, onPreferencesChange, onRender, onStart, onSuspend, onUpdate, preferences } from "starhermit:engine";
 import { bindings, onAction, onBindingsChange } from "starhermit:input";
 import * as draw from "starhermit:draw";
 import * as ui from "starhermit:ui";
@@ -159,13 +163,13 @@ function paintBackdrop(r: { x: number; y: number; w: number; h: number }): void 
 /** Text no wider than `width` (logical): a label when it fits, else a centred paragraph. */
 function text(id: string, s: string, cls: string, width: number): void {
   const st = [cls];
-  if (ui.measureText(s, { style: st }).width / ui.preferences().scale <= width) ui.id(id).style(cls).label(s);
-  else ui.id(id).style(cls, { text: { align: "center" } }).paragraph(s, width);
+  if (ui.measureText(s, { style: st }).width / ui.preferences().scale <= width) ui.id(id).style(__l10nStyle(cls)).label(s);
+  else ui.id(id).style(__l10nStyle(cls), __l10nStyle({ text: { align: "center" } })).paragraph(s, width);
 }
 
 function header(L: Lay): void {
   ui.column("header", () => {
-    ui.id("title").style(L.short ? "title-short" : "title").label("Hollow Feast");
+    ui.id("title").style(__l10nStyle(L.short ? "title-short" : "title")).label("Hollow Feast");
     if (!L.short) text("subtitle", tr("subtitle"), "subtitle", L.lw - 32);
     text("howto", tr("howto") + keySuffix, L.short ? "howto-short" : "howto", Math.min(L.lw - 32, 440));
   }, { align: "center", spacing: L.short ? 2 : 4, padding: { top: L.short ? 6 : 12, start: 16, end: 16 } });
@@ -197,7 +201,7 @@ function hud(L: Lay): void {
     ui.row("hud-cells", () => {
       for (const c of cells) {
         ui.column(`cell-${c.id}`, () => {
-          ui.id(`${c.id}-label`).style(labelCls).label(c.label);
+          ui.id(`${c.id}-label`).style(__l10nStyle(labelCls)).label(c.label);
           ui.row(`${c.id}-vrow`, () => {
             if (c.avatar && face) {
               ui.widget("avatar", {
@@ -205,7 +209,7 @@ function hud(L: Lay): void {
                 draw: (r) => draw.image(face, r.x, r.y, r.width, r.height),
               });
             }
-            ui.id(`${c.id}-value`).style(c.cls, long(c) && { width: 170, text: { overflow: "ellipsis" } }).label(c.value, { size: valueSize });
+            ui.id(`${c.id}-value`).style(__l10nStyle(c.cls), __l10nStyle(long(c) && { width: 170, text: { overflow: "ellipsis" } })).label(c.value, { size: valueSize });
           }, { spacing: 4, align: "center" });
         }, { align: "center", spacing: 0 });
       }
@@ -216,7 +220,7 @@ function hud(L: Lay): void {
 function controls(L: Lay): void {
   const cls = L.short ? "ctl-short" : "ctl";
   const btn = (id: string, name: string, glyph: string, fn: () => void): void => {
-    if (ui.id(id).style(cls).button(name, { content: () => { ui.label(glyph, { size: 18 }); } })) fn();
+    if (ui.id(id).style(__l10nStyle(cls)).button(name, { content: () => { ui.label(glyph, { size: 18 }); } })) fn();
   };
   const move = (d: Dir): () => void => () => { audio.play("ui-click"); act(d); };
   ui.row("controls", () => {
@@ -235,11 +239,11 @@ function banner(rect: ui.Rect, L: Lay): void {
   ui.area(rect, () => {
     ui.column("win", () => {
       ui.column("win-box", () => {
-        ui.id("win-text").style(L.short ? "win-text-short" : "win-text").label(tr("win"));
+        ui.id("win-text").style(__l10nStyle(L.short ? "win-text-short" : "win-text")).label(tr("win"));
       }, { style: "win-banner" });
       if (lb) {
         const line = lb.secs + tr(lb.key, { rank: lb.rank ?? "" });
-        ui.column("win-lb", () => { ui.id("win-lb-text").style("win-lb-text").label(line); }, { style: "win-lb" });
+        ui.column("win-lb", () => { ui.id("win-lb-text").style(__l10nStyle("win-lb-text")).label(line); }, { style: "win-lb" });
       }
     }, { align: "center", justify: "center", spacing: 8, width: rect.width / L.sc, height: rect.height / L.sc });
   });
@@ -251,17 +255,17 @@ function settingsDialog(L: Lay): void {
   const open = ui.dialog("settings-dialog", "", true, () => {
     ui.column("settings-col", () => {
       ui.row("settings-head", () => {
-        ui.id("settings-title").style("panel-title").label(tr("settings"));
+        ui.id("settings-title").style(__l10nStyle("panel-title")).label(tr("settings"));
         ui.spacer();
-        if (ui.id("settings-close").style("ctl").button(tr("close"), { content: () => { ui.label("✕", { size: 18 }); } })) closeSettings();
+        if (ui.id("settings-close").style(__l10nStyle("ctl")).button(tr("close"), { content: () => { ui.label("✕", { size: 18 }); } })) closeSettings();
       }, { width: w, align: "center" });
-      ui.id("account-head").style("panel-head").label(tr("sh.account").toUpperCase());
+      ui.id("account-head").style(__l10nStyle("panel-head")).label(tr("sh.account").toUpperCase());
       if (!platform.signedIn()) {
-        if (ui.id("signin").style("acct-btn", { width: w }).button(tr("starhermit.signIn"))) void requestSignIn().catch(() => undefined);
-      } else if (ui.id("invite").style("acct-btn", { width: w }).button(tr("starhermit.invite"))) copyInvite();
-      ui.id("options-head").style("panel-head").label(tr("moreOptions").toUpperCase());
-      ui.id("options-note").style("panel-note").paragraph(tr("optionsNote"), w);
-      if (ui.id("options").style("acct-btn", { width: w }).button(tr("moreOptions"))) openMenu();
+        if (ui.id("signin").style(__l10nStyle("acct-btn"), __l10nStyle({ width: w })).button(tr("starhermit.signIn"))) void requestSignIn().catch(() => undefined);
+      } else if (ui.id("invite").style(__l10nStyle("acct-btn"), __l10nStyle({ width: w })).button(tr("starhermit.invite"))) copyInvite();
+      ui.id("options-head").style(__l10nStyle("panel-head")).label(tr("moreOptions").toUpperCase());
+      ui.id("options-note").style(__l10nStyle("panel-note")).paragraph(tr("optionsNote"), w);
+      if (ui.id("options").style(__l10nStyle("acct-btn"), __l10nStyle({ width: w })).button(tr("moreOptions"))) __l10nOptions();
     }, { spacing: 4, width: w });
   });
   // Escape or Back closes it (not on the frame the press that opened it arrived).
@@ -340,8 +344,12 @@ onUpdate((dt) => {
   if (!boundRead) { boundRead = true; readBindings(); }
   applyLook();
 });
-onRender(() => {
+onRender(__l10nRender(() => {
   drawPage();
   paintBackdrop(render.view);
   render.update(frameDt, reduced);
-});
+}));
+
+// localization-runtime:menu
+import { installLanguageMenu as __installLanguageMenu } from "./l10n/menu.ts";
+__installLanguageMenu(false);
