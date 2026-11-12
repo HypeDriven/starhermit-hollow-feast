@@ -1,0 +1,103 @@
+{
+  "game": {
+    "id": "cf664554-f473-462d-98f2-b9e2bebb4c66",
+    "displayName": "Hollow Feast",
+    "hosting": {
+      "hostingEnabled": true,
+      "hostedUrl": "https://cf664554-f473-462d-98f2-b9e2bebb4c66.starhermit.com/index.html",
+      "deployStatus": "live",
+      "pinnedCommitSha": null,
+      "deployedCommitSha": null,
+      "deployError": null,
+      "deployedAt": "2026-11-12T08:15:08.417874+00:00",
+      "externalLaunchUrl": null,
+      "engineVersion": "1.38.0",
+      "deployWarning": null
+    }
+  },
+  "publishedAt": "2026-11-12T08:15:11.380Z",
+  "sourceCommit": "dbaa27b412291722f5c57402bf9b74f1ff7a35de",
+  "bytesReceived": 912120,
+  "archiveSha256": "30a4343c60b80f67a143cb7ab1fc559b52e93072bc86759eb5c9577f013b877c",
+  "indexSha256": "3b848d061a57404e3843651be1a0ec92e29a546b04a11b87e5538d29bb48f4fa",
+  "result": {
+    "clientPublished": true,
+    "serverImageLoaded": false,
+    "imageDigest": null,
+    "bytesReceived": 912120,
+    "mode": "replace",
+    "filesRemoved": 0,
+    "engineVersion": "1.38.0",
+    "deployWarning": null
+  },
+  "liveVerification": {
+    "at": "2026-11-12T08:15:11.380Z",
+    "files": [
+      {
+        "file": "starhermit-files.json",
+        "sha256": "3b848d061a57404e3843651be1a0ec92e29a546b04a11b87e5538d29bb48f4fa",
+        "status": 200
+      },
+      {
+        "file": "assets/localization/Hebrew.ttf",
+        "sha256": "da29123007783210386d0458df72973bca13a3cc08148da19dfae61706206a3c",
+        "status": 200
+      },
+      {
+        "file": "assets/localization/Japanese.otf",
+        "sha256": "bd567454556d51fc1d489f6168233ed0010c8f5338db0bb4c51616c6d5e29fdd",
+        "status": 200
+      },
+      {
+        "file": "assets/localization/Khmer.ttf",
+        "sha256": "7cbb493030dd4e0bf5d4419df004dbc61faf607df09f5db1bdae96216455165a",
+        "status": 200
+      },
+      {
+        "file": "assets/localization/SimplifiedChinese.otf",
+        "sha256": "2be657739837e6da4e866d120fa2706c97740de8489555877b0ed785686e705a",
+        "status": 200
+      },
+      {
+        "file": "assets/localization/Tamil.ttf",
+        "sha256": "f8cd743454f40bfc2b5dbc6ebcad189c16b3162ef7611e464f6b5f3d267cb51c",
+        "status": 200
+      },
+      {
+        "file": "assets/localization/TraditionalChinese.otf",
+        "sha256": "f27a0b2506c03a66d45d408d597f69ed2d8ebbb5c75c1efaec2eaf915d9b1491",
+        "status": 200
+      },
+      {
+        "file": "assets/localization/common.json",
+        "sha256": "8ed9cef52b40ba8d9701099c97057879821aa20aa66717bb2972f27a788ca265",
+        "status": 200
+      },
+      {
+        "file": "assets/localization/fonts.json",
+        "sha256": "37beaea0dba54c9f2c45995cbf9fd19fad21719d701718c41d7e58dd7748ca13",
+        "status": 200
+      },
+      {
+        "file": "assets/localization/locales.json",
+        "sha256": "52ae79df9ddd711ea212ae4a5b9739aba2441f567f1f1a34855486d32dea827f",
+        "status": 200
+      },
+      {
+        "file": "assets/strings.json",
+        "sha256": "c3ca3bdd40f197ab4da957d4ff1a710956066322ae1ad79e76210be9cae09d0f",
+        "status": 200
+      },
+      {
+        "file": "index.html",
+        "sha256": "d4546e9277bae69dc8a1f1a3e1ae3756ef7abb4a4cb19ebc538e226426244d80",
+        "status": 200
+      },
+      {
+        "file": "starhermit.txt",
+        "sha256": "6a8b2dc0407ab6422d76973e73dc5eccc05f7b2ec5650f1b7894f3d7a5fbcb7c",
+        "status": 200
+      }
+    ]
+  }
+}
