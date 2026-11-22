@@ -320,6 +320,7 @@ export function applyLook(next: Look): void {
     vignette: { amount: 0.28, inner: 0.32, outer: 0.8 },
   } : null;
   renderer.antialias = next.antialias;
+  renderer.motionBlur = next.bloom !== null ? { intensity: 0.25, samples: 8, maxPixels: 16, targetFps: 60, camera: false } : null;
   const detailed = next.detailed;
   detailGroup.visible = detailed;
   for (let i = 0; i < items.length; i++) { const m = itemMat(i); if (m instanceof MeshPhysicalMaterial) m.clearcoat = detailed ? 0.8 : 0; }
