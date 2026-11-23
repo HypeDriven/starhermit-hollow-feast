@@ -1,3 +1,4 @@
+import { showCursor } from "./cursor.ts";
 import { localizedStyle as __l10nStyle } from "./l10n/font.ts";
 import { withLanguageRender as __l10nRender } from "./l10n/menu.ts";
 // localization-runtime:attached
@@ -322,6 +323,7 @@ function applyLook(): void {
   render.applyLook(lookFor(levelSettings(f.level)));
 }
 onStart(() => {
+  showCursor();
   initStyles();
   platform.initPlatform();
   platform.onRecordsMerged(onMerged);
