@@ -2,7 +2,7 @@
 
 A hungry pale void hovers over a slate banquet table and must swallow twelve glowing morsels
 **in numbered order**. This document describes the game as it ships today: a StarHermit engine script
-game (engine 1.50.0, host API 1.50), played natively by the StarHermit client and in browsers by the
+game (engine 1.51.0, host API 1.51), played natively by the StarHermit client and in browsers by the
 engine's web runtime.
 
 ---
@@ -23,7 +23,7 @@ engine's web runtime.
 
 | Path | Responsibility |
 |---|---|
-| `starhermit.txt` | Manifest: name, owner, `server=score-script.js`, cover, `launch=index.html`, `engine.api=1`, `engine.entry=native/main.ts`, `engine.version=1.50.0`, `engine.minor=50`, capabilities `platform,storage,clipboard`, the five actions with keys and pad defaults. |
+| `starhermit.txt` | Manifest: name, owner, `server=score-script.js`, cover, `launch=index.html`, `engine.api=1`, `engine.entry=native/main.ts`, `engine.version=1.51.0`, `engine.minor=51`, capabilities `platform,storage,clipboard`, the five actions with keys and pad defaults. |
 | `native/main.ts` | Entry module: board state, moves and restarts (keys, pads, buttons), sounds per outcome, records, the solve timer and leaderboard posting, and the page as `starhermit:ui` (header, playfield rectangle, HUD, control bar, win banner, Settings dialog, toast). |
 | `native/render.ts` | The table on `starhermit:scene`: meshes, lights, materials per budget, textures, motes, the post effects, the camera fit and view offset into the playfield, ambient motion. |
 | `native/quality.ts` | The browser build's four presets and budgets keyed by the runtime's quality tier and level. |
@@ -418,9 +418,9 @@ The string tables include complete regional variants for `fr-BE`, `de-BE`, `en-S
 
 <!-- regional-localization:end -->
 
-## Engine 1.50.0
+## Engine 1.51.0
 
-Browser play uses the WebGPU-only StarHermit 1.50.0 web runtime. Automatic ray-traced shadows are enabled on supported Vulkan devices, with mapped-shadow fallbacks elsewhere. Packaging creates block-compressed runtime textures and compressed glTF copies, retaining original image fallbacks.
+Browser play uses the WebGPU-only StarHermit 1.51.0 web runtime. Automatic ray-traced shadows are enabled on supported Vulkan devices, with mapped-shadow fallbacks elsewhere. Packaging creates block-compressed runtime textures and compressed glTF copies, retaining original image fallbacks.
 
 Browser rendering uses the engine's asynchronous pipeline creation so newly encountered materials do not stall the page. Native play retains the engine's synchronous pipeline behavior.
 
