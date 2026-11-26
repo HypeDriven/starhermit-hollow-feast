@@ -12,7 +12,7 @@
     "metadataSource": "starhermit.txt",
     "createdAt": "2026-09-01T07:01:02.233765+00:00",
     "coverArtSource": "manifest",
-    "coverArtUpdatedAt": "2026-11-23T17:01:53.69979+00:00",
+    "coverArtUpdatedAt": "2026-11-26T14:23:15.847651+00:00",
     "submittedByUserId": "2712e04e-461b-4d23-81ae-e40b429128a8",
     "submittedByUsername": "starhermit",
     "hosting": {
@@ -22,9 +22,9 @@
       "pinnedCommitSha": null,
       "deployedCommitSha": null,
       "deployError": null,
-      "deployedAt": "2026-11-23T17:01:53.686483+00:00",
+      "deployedAt": "2026-11-26T14:23:15.835898+00:00",
       "externalLaunchUrl": null,
-      "engineVersion": "1.47.0",
+      "engineVersion": "1.50.0",
       "deployWarning": null
     },
     "description": "Guide a hungry void across a banquet table and swallow glowing morsels in the correct numbered order.",
@@ -36,19 +36,19 @@
     "links": [],
     "isDisabled": false
   },
-  "publishedAt": "2026-11-23T17:01:53.816Z",
-  "sourceCommit": "11ec37d0c9a84ebc26cdc26cfad249700693fa4d",
-  "bytesReceived": 1407525,
-  "archiveSha256": "469c11b4ce3c94ef76cf3033a58528acb894017bed3889f2bad6d5d330c08fba",
+  "publishedAt": "2026-11-26T14:23:14.901Z",
+  "sourceCommit": "d8aec34b9be5aa2f7cf8c85ba4ebf03c20632553",
+  "bytesReceived": 1407557,
+  "archiveSha256": "0fb2a57050d42d1827b0c45e58db73bd82c2d96a3e85837cb2d9405890f895b3",
   "indexSha256": "460987c4a04949be9bcee3c756c2d49a987ad6d3c07c9b1d9a4f141c78c75f47",
   "result": {
     "clientPublished": true,
     "serverImageLoaded": false,
     "imageDigest": null,
-    "bytesReceived": 1407525,
+    "bytesReceived": 1407557,
     "mode": "replace",
     "filesRemoved": 0,
-    "engineVersion": "1.47.0",
+    "engineVersion": "1.50.0",
     "deployWarning": null
   },
   "liveVerification": {
